@@ -6,7 +6,6 @@ Welcome to my personal portfolio website! This is a modern, responsive portfolio
 
 - **Modern Design**: Clean and professional UI built with Chakra UI
 - **Responsive**: Fully responsive design that works on all devices
-- **Dark/Light Mode**: Toggle between dark and light themes
 - **Project Showcase**: Detailed display of my projects with descriptions and links
 - **Interactive Components**: Smooth animations and transitions
 - **Contact Form**: Easy way to get in touch
@@ -55,10 +54,6 @@ src/
 ## 🚀 Deployment
 
 The portfolio is deployed using GitHub Pages. Any push to the main branch will automatically trigger a new deployment.
-
-## 📝 License
-
-This project is open source and available under the [MIT License](LICENSE).
 
 ## 🤝 Contact
 
