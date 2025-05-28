@@ -25,6 +25,25 @@ import {
 } from '@chakra-ui/icons';
 import { Link as RouterLink } from 'react-router-dom';
 
+const NAV_ITEMS: Array<NavItem> = [
+  {
+    label: 'Home',
+    href: '/',
+  },
+  {
+    label: 'About',
+    href: '/about',
+  },
+  {
+    label: 'Projects',
+    href: '/projects',
+  },
+  {
+    label: 'Contact',
+    href: '/contact',
+  },
+];
+
 export default function Navbar() {
   const { isOpen, onToggle } = useDisclosure();
 
@@ -85,7 +104,6 @@ export default function Navbar() {
               fontWeight={600}
               color={'white'}
               bg={'brand.500'}
-              href={'#'}
               _hover={{
                 bg: 'brand.600',
                 transform: 'translateY(-2px)',
@@ -265,23 +283,4 @@ interface NavItem {
   subLabel?: string;
   children?: Array<NavItem>;
   href?: string;
-}
-
-const NAV_ITEMS: Array<NavItem> = [
-  {
-    label: 'Home',
-    href: '/',
-  },
-  {
-    label: 'About',
-    href: '/about',
-  },
-  {
-    label: 'Projects',
-    href: '/projects',
-  },
-  {
-    label: 'Contact',
-    href: '/contact',
-  },
-]; 
+} 

@@ -8,7 +8,6 @@ import {
   SimpleGrid,
   Icon,
   useColorModeValue,
-  Image,
   Flex,
   VStack,
   HStack,
@@ -31,6 +30,20 @@ interface SkillProps {
   name: string;
   level: number;
   icon: React.ElementType;
+}
+
+interface ExperienceProps {
+  title: string;
+  company: string;
+  period: string;
+  description: string[];
+}
+
+interface EducationProps {
+  degree: string;
+  school: string;
+  period: string;
+  details: string[];
 }
 
 const Feature = ({ title, text, icon }: FeatureProps) => {
@@ -93,84 +106,186 @@ const Skill = ({ name, level, icon }: SkillProps) => {
   );
 };
 
-const About = () => {
+const Experience = ({ title, company, period, description }: ExperienceProps) => {
+  return (
+    <MotionBox
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      viewport={{ once: true }}
+      mb={6}
+    >
+      <Stack spacing={2}>
+        <Heading size="md">{title}</Heading>
+        <Text fontWeight="bold" color="brand.500">{company}</Text>
+        <Text color={useColorModeValue('gray.600', 'gray.400')} fontSize="sm">{period}</Text>
+        <VStack align="start" spacing={2}>
+          {description.map((item, index) => (
+            <Text key={index} color={useColorModeValue('gray.600', 'gray.400')}>
+              • {item}
+            </Text>
+          ))}
+        </VStack>
+      </Stack>
+    </MotionBox>
+  );
+};
+
+const Education = ({ degree, school, period, details }: EducationProps) => {
+  return (
+    <MotionBox
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      viewport={{ once: true }}
+      mb={6}
+    >
+      <Stack spacing={2}>
+        <Heading size="md">{degree}</Heading>
+        <Text fontWeight="bold" color="brand.500">{school}</Text>
+        <Text color={useColorModeValue('gray.600', 'gray.400')} fontSize="sm">{period}</Text>
+        <VStack align="start" spacing={2}>
+          {details.map((item: string, index: number) => (
+            <Text key={index} color={useColorModeValue('gray.600', 'gray.400')}>
+              • {item}
+            </Text>
+          ))}
+        </VStack>
+      </Stack>
+    </MotionBox>
+  );
+};
+
+const About: React.FC = () => {
   return (
     <Box py={20} bg={useColorModeValue('gray.50', 'gray.900')}>
       <Container maxW="container.xl">
-        <Stack spacing={4} as={Container} maxW={'3xl'} textAlign={'center'} mb={16}>
-          <Heading
-            fontSize={'3xl'}
-            bgGradient="linear(to-r, brand.500, accent.500)"
-            bgClip="text"
-            fontWeight="extrabold"
-          >
-            About Me
-          </Heading>
-          <Text color={useColorModeValue('gray.600', 'gray.400')} fontSize={'lg'}>
-            I'm a passionate Software Engineer with expertise in AI, web development, and problem-solving.
-            I love creating innovative solutions that make a real impact.
-          </Text>
+        <Stack spacing={8} align="center" textAlign="center" mb={16}>
+          <Heading size="2xl">About Me</Heading>
+          <section data-section="about">
+            <Text color={useColorModeValue('gray.600', 'gray.400')} fontSize={'lg'} maxW="3xl" mx="auto">
+              I am a Software Engineer and AI enthusiast with a passion for building innovative solutions. My journey in technology has been driven by a desire to create impactful software that makes a difference.
+            </Text>
+          </section>
         </Stack>
 
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={10} mb={16}>
-          <VStack spacing={6} align="start">
-            <Heading size="lg">My Journey</Heading>
-            <Text color={useColorModeValue('gray.600', 'gray.400')}>
-              As a software engineer, I've focused on developing AI-powered applications and web solutions.
-              My journey in tech has been driven by a passion for innovation and a desire to create
-              meaningful tools that help people.
-            </Text>
-            <Text color={useColorModeValue('gray.600', 'gray.400')}>
-              I specialize in building intelligent applications that combine modern web technologies
-              with AI capabilities. My approach combines technical expertise with a strong focus
-              on user experience and practical problem-solving.
-            </Text>
-          </VStack>
+        <Stack spacing={4} as={Container} maxW={'3xl'} textAlign={'center'} mb={16}>
+          <Heading size="lg">Professional Experience</Heading>
+        </Stack>
 
-          <Flex justify="center" align="center">
-            <Box
-              position="relative"
-              w="full"
-              h="400px"
-              borderRadius="2xl"
-              overflow="hidden"
-              boxShadow="2xl"
-            >
-              <Image
-                src="https://images.unsplash.com/photo-1507238691740-187a5b1d37b8"
-                alt="Developer at work"
-                objectFit="cover"
-                w="full"
-                h="full"
+        <Container maxW="container.xl" mb={16}>
+          <section data-section="experience">
+            <VStack spacing={8} align="stretch">
+              <Experience
+                title="Software Engineer"
+                company="Hack For LA"
+                period="Aug 2024 – Present"
+                description={[
+                  "Leveraged JavaScript, HTML, and CSS to refine frontend interfaces, ensuring content was clear and user-friendly.",
+                  "Produced well-structured, maintainable code and actively engaged in code reviews to uphold development standards.",
+                  "Built and maintained backend services using Python and Django, enabling smooth interaction with frontend systems."
+                ]}
               />
-              <Box
-                position="absolute"
-                top="0"
-                left="0"
-                right="0"
-                bottom="0"
-                bgGradient="linear(to-b, transparent, brand.900)"
-                opacity={0.3}
+              <Experience
+                title="Software Engineer Intern"
+                company="Ekotrope"
+                period="April 2024 – Aug 2024"
+                description={[
+                  "Developed integration workflows between BEAM and Ekotrope platforms using JavaScript and Google Scripts.",
+                  "Streamlined data synchronization processes to enhance project management efficiency.",
+                  "Advanced integration processes to support project tracking and analysis."
+                ]}
               />
-            </Box>
-          </Flex>
-        </SimpleGrid>
+              <Experience
+                title="Instructional Assistant"
+                company="Northeastern University"
+                period="Aug 2023 – Dec 2023"
+                description={[
+                  "Assisted in enhancing the CSYE 6500: Cryptocurrency and Smart Contracts course by conducting office hours and interactive classroom discussions.",
+                  "Evaluated assignments and provided feedback to improve student understanding of course material."
+                ]}
+              />
+              <Experience
+                title="Software Engineer Intern"
+                company="Cloudtaru Infotech Pvt Ltd"
+                period="May 2022 – Sep 2022"
+                description={[
+                  "Led the development of a Common Portal using Angular and Node.js, enhancing user satisfaction through improved functionality and a seamless interface.",
+                  "Conducted comprehensive automation testing with Selenium to ensure reliability.",
+                  "Designed and implemented a PostgreSQL database, optimizing data management processes and improving query performance."
+                ]}
+              />
+            </VStack>
+          </section>
+        </Container>
+
+        <Stack spacing={4} as={Container} maxW={'3xl'} textAlign={'center'} mb={16}>
+          <Heading size="lg">Education</Heading>
+        </Stack>
+
+        <Container maxW="container.xl" mb={16}>
+          <section data-section="education">
+            <VStack spacing={8} align="stretch">
+              <Education
+                degree="M.S. in Software Engineering Systems"
+                school="Northeastern University"
+                period="Jan 2022 – Dec 2023"
+                details={[
+                  "Comprehensive knowledge in software development",
+                  "System design and emerging technologies",
+                  "Advanced programming concepts"
+                ]}
+              />
+              <Education
+                degree="Bachelor of Technology in Computer Science"
+                school="JNTUK"
+                period="2016 - 2020"
+                details={[
+                  "GPA: 8.0/10"
+                ]}
+              />
+            </VStack>
+          </section>
+        </Container>
 
         <Stack spacing={4} as={Container} maxW={'3xl'} textAlign={'center'} mb={16}>
           <Heading size="lg">Technical Skills</Heading>
-          <Text color={useColorModeValue('gray.600', 'gray.400')}>
-            Here are some of the technologies and tools I work with
-          </Text>
         </Stack>
 
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={10} mb={16}>
-          <Skill name="Python" level={90} icon={FaPython} />
-          <Skill name="Java" level={85} icon={FaJava} />
-          <Skill name="JavaScript" level={90} icon={SiJavascript} />
-          <Skill name="React" level={85} icon={FaReact} />
-          <Skill name="MySQL" level={80} icon={SiMysql} />
-          <Skill name="MongoDB" level={75} icon={SiMongodb} />
-        </SimpleGrid>
+        <Container maxW="container.xl" mb={16}>
+          <section data-section="skills">
+            <VStack spacing={8} align="stretch">
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8}>
+                <Stack spacing={6}>
+                  <Heading size="md">Frontend</Heading>
+                  <Skill name="React" level={90} icon={FaReact} />
+                  <Skill name="TypeScript" level={85} icon={SiTypescript} />
+                  <Skill name="JavaScript" level={90} icon={SiJavascript} />
+                  <Skill name="HTML/CSS" level={85} icon={FaCode} />
+                </Stack>
+                <Stack spacing={6}>
+                  <Heading size="md">Backend</Heading>
+                  <Skill name="Node.js" level={85} icon={FaNodeJs} />
+                  <Skill name="Python" level={80} icon={FaPython} />
+                  <Skill name="Django" level={75} icon={FaServer} />
+                </Stack>
+                <Stack spacing={6}>
+                  <Heading size="md">Databases</Heading>
+                  <Skill name="PostgreSQL" level={80} icon={SiPostgresql} />
+                  <Skill name="MongoDB" level={75} icon={SiMongodb} />
+                  <Skill name="MySQL" level={70} icon={SiMysql} />
+                </Stack>
+                <Stack spacing={6}>
+                  <Heading size="md">Tools & Others</Heading>
+                  <Skill name="Git" level={85} icon={FaTools} />
+                  <Skill name="Selenium" level={75} icon={FaTools} />
+                  <Skill name="Google Scripts" level={80} icon={FaTools} />
+                  <Skill name="AI/ML" level={70} icon={FaBrain} />
+                </Stack>
+              </SimpleGrid>
+            </VStack>
+          </section>
+        </Container>
 
         <Stack spacing={4} as={Container} maxW={'3xl'} textAlign={'center'} mb={16}>
           <Heading size="lg">Areas of Expertise</Heading>

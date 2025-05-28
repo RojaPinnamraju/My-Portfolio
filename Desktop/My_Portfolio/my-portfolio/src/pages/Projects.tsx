@@ -156,48 +156,56 @@ const Projects = () => {
         </Stack>
 
         <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={10}>
-          <Feature
-            icon={FaBrain}
-            title={'AI Task Planner App'}
-            text={
-              'Developed an AI-powered task management system using Streamlit and FastAPI that integrates with Groq and OpenAI language models. Implemented a responsive frontend with customizable AI behavior and web search capabilities.'
-            }
-            demo="https://ai-personnal-advisor.netlify.app/"
-            github="https://github.com/RojaPinnamraju/ai-task-planner"
-            image="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40"
-            technologies={['Streamlit', 'FastAPI', 'Groq', 'OpenAI', 'Python']}
-          />
-          <Feature
-            icon={FaCode}
-            title={'CodeEdgeAI'}
-            text={
-              'A modern coding platform with AI-powered tutoring, providing an interactive learning experience for developers.'
-            }
-            demo="https://codeedgeai.netlify.app/"
-            github="https://github.com/RojaPinnamraju/CodeEdgeAI"
-            image="https://images.unsplash.com/photo-1531746790731-6c087fecd65a"
-            technologies={['Flask', 'JavaScript', 'HTML/CSS', 'Groq API']}
-          />
-          <Feature
-            icon={FaDatabase}
-            title={'Job Portal'}
-            text={
-              'Conceptualized and executed a job portal using Java, Spring Boot, MongoDB, React.js, and Swagger UI. Engineered RESTful APIs, and integrated Swagger UI for streamlined testing and documentation.'
-            }
-            github="https://github.com/RojaPinnamraju/JobPortal"
-            image="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40"
-            technologies={['Java', 'Spring Boot', 'MongoDB', 'React.js', 'Swagger UI']}
-          />
-          <Feature
-            icon={FaTools}
-            title={'Tic-Tac-Toe Game'}
-            text={
-              'Designed an AI opponent with an 85% improved winning rate through pattern recognition and learning mechanisms.'
-            }
-            github="https://github.com/RojaPinnamraju/INFO6205TicTacToe"
-            image="https://images.unsplash.com/photo-1553481187-be93c21490a9"
-            technologies={['Java', 'AI', 'Pattern Recognition']}
-          />
+          <Box data-project="ai-task-planner">
+            <Feature
+              icon={FaBrain}
+              title={'AI Task Planner App'}
+              text={
+                'Developed an AI-powered task management system using Streamlit and FastAPI that integrates with Groq and OpenAI language models. Implemented a responsive frontend with customizable AI behavior and web search capabilities.'
+              }
+              demo="https://ai-personnal-advisor.netlify.app/"
+              github="https://github.com/RojaPinnamraju/ai-task-planner"
+              image="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40"
+              technologies={['Streamlit', 'FastAPI', 'Groq', 'OpenAI', 'Python']}
+            />
+          </Box>
+          <Box data-project="codeedgeai">
+            <Feature
+              icon={FaCode}
+              title={'CodeEdgeAI'}
+              text={
+                'A modern coding platform with AI-powered tutoring, providing an interactive learning experience for developers.'
+              }
+              demo="https://codeedgeai.netlify.app/"
+              github="https://github.com/RojaPinnamraju/CodeEdgeAI"
+              image="https://images.unsplash.com/photo-1531746790731-6c087fecd65a"
+              technologies={['Flask', 'JavaScript', 'HTML/CSS', 'Groq API']}
+            />
+          </Box>
+          <Box data-project="job-portal">
+            <Feature
+              icon={FaDatabase}
+              title={'Job Portal'}
+              text={
+                'Conceptualized and executed a job portal using Java, Spring Boot, MongoDB, React.js, and Swagger UI. Engineered RESTful APIs, and integrated Swagger UI for streamlined testing and documentation.'
+              }
+              github="https://github.com/RojaPinnamraju/JobPortal"
+              image="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40"
+              technologies={['Java', 'Spring Boot', 'MongoDB', 'React.js', 'Swagger UI']}
+            />
+          </Box>
+          <Box data-project="tic-tac-toe">
+            <Feature
+              icon={FaTools}
+              title={'Tic-Tac-Toe Game'}
+              text={
+                'Designed an AI opponent with an 85% improved winning rate through pattern recognition and learning mechanisms.'
+              }
+              github="https://github.com/RojaPinnamraju/INFO6205TicTacToe"
+              image="https://images.unsplash.com/photo-1553481187-be93c21490a9"
+              technologies={['Java', 'AI', 'Pattern Recognition']}
+            />
+          </Box>
           <Feature
             icon={FaBrain}
             title={'LangChain YouTube Q&A'}
