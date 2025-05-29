@@ -1,0 +1,10 @@
+{
+  "name": "netlify-functions",
+  "version": "1.0.0",
+  "description": "Netlify serverless functions for portfolio",
+  "main": "index.js",
+  "dependencies": {
+    "groq-sdk": "^0.3.0",
+    "puppeteer": "^21.0.0"
+  }
+} 

@@ -113,21 +113,21 @@ const Chatbot = () => {
     onOpen();
   };
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  const handleSend = async (message: string) => {
+    if (!message.trim()) return;
 
-    const userMessage: Message = { role: 'user', content: input };
+    const userMessage: Message = { role: 'user', content: message };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3000/chat', {
+      const response = await fetch('/.netlify/functions/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({ message }),
       });
 
       if (!response.ok) {
@@ -322,7 +322,7 @@ const Chatbot = () => {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask about experience, skills, or projects..."
-                  onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSend(input)}
                   disabled={isLoading}
                   size="lg"
                   _focus={{
@@ -332,7 +332,7 @@ const Chatbot = () => {
                 />
                 <Button
                   colorScheme="brand"
-                  onClick={handleSend}
+                  onClick={() => handleSend(input)}
                   isLoading={isLoading}
                   size="lg"
                   px={6}

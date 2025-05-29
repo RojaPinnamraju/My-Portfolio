@@ -1,41 +1,117 @@
 import { Groq } from 'groq-sdk';
+import puppeteer from 'puppeteer';
 
-export async function handler(event, context) {
-  // Only allow POST requests
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
+
+async function fetchWebsiteContent() {
+  console.log('Starting content fetch...');
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+  
+  try {
+    console.log('Browser launched, navigating to pages...');
+    const page = await browser.newPage();
+    
+    // Fetch About page content
+    await page.goto('https://rojapinnamraju.netlify.app/about', {
+      waitUntil: 'networkidle0',
+      timeout: 30000
+    });
+    
+    console.log('About page loaded, extracting content...');
+    const aboutContent = await page.evaluate(() => {
+      const sections = {};
+      document.querySelectorAll('[data-section]').forEach(element => {
+        const sectionName = element.getAttribute('data-section');
+        sections[sectionName] = element.textContent.trim();
+      });
+      return sections;
+    });
+
+    // Fetch Projects page content
+    await page.goto('https://rojapinnamraju.netlify.app/projects', {
+      waitUntil: 'networkidle0',
+      timeout: 30000
+    });
+    
+    console.log('Projects page loaded, extracting content...');
+    const projectsContent = await page.evaluate(() => {
+      const projects = {};
+      document.querySelectorAll('[data-project]').forEach(element => {
+        const projectName = element.getAttribute('data-project');
+        projects[projectName] = element.textContent.trim();
+      });
+      return projects;
+    });
+
+    // Fetch Contact page content
+    await page.goto('https://rojapinnamraju.netlify.app/contact', {
+      waitUntil: 'networkidle0',
+      timeout: 30000
+    });
+    
+    console.log('Contact page loaded, extracting content...');
+    const contactContent = await page.evaluate(() => {
+      const contact = {};
+      document.querySelectorAll('[data-contact]').forEach(element => {
+        const contactName = element.getAttribute('data-contact');
+        contact[contactName] = element.textContent.trim();
+      });
+      return contact;
+    });
+    
+    const content = {
+      ...aboutContent,
+      projects: projectsContent,
+      contact: contactContent
+    };
+    
+    console.log('Content extracted:', content);
+    return content;
+  } catch (error) {
+    console.error('Error fetching content:', error);
+    throw error;
+  } finally {
+    await browser.close();
+  }
+}
+
+export const handler = async (event) => {
+  // Only allow POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' })
+      body: 'Method Not Allowed'
     };
   }
 
   try {
     const { message } = JSON.parse(event.body);
-
-    if (!process.env.GROQ_API_KEY) {
-      throw new Error('GROQ_API_KEY is not defined in environment variables');
-    }
-
-    const groq = new Groq({
-      apiKey: process.env.GROQ_API_KEY,
-    });
+    const content = await fetchWebsiteContent();
 
     const systemPrompt = `You are Roja Pinnamraju, a Software Engineer and AI enthusiast. You should respond to questions in first person, as if you are speaking directly to the user. Here is your information:
 
 About Me:
-I am a Software Engineer and AI enthusiast passionate about building innovative solutions and impactful software.
+${content.about}
 
 My Professional Experience:
-[Your professional experience details]
+${content.experience}
 
 My Education:
-[Your education details]
+${content.education}
 
 My Technical Skills:
-[Your technical skills]
+${content.skills}
 
 My Projects:
-[Your projects]
+${content.projects ? JSON.stringify(content.projects, null, 2) : 'No projects information available'}
+
+My Contact Information:
+${content.contact ? JSON.stringify(content.contact, null, 2) : 'No contact information available'}
 
 When responding:
 1. ONLY give your full introduction when:
@@ -95,13 +171,22 @@ When responding:
 
     return {
       statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+      },
       body: JSON.stringify({ response: completion.choices[0].message.content })
     };
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in chat endpoint:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Sorry, I encountered an error. Please try again.' })
+      body: JSON.stringify({ 
+        error: 'Sorry, I encountered an error. Please try again.',
+        details: error.message 
+      })
     };
   }
-} 
+}; 
