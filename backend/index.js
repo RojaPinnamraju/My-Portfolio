@@ -7,6 +7,11 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Cache configuration
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+let contentCache = null;
+let lastFetchTime = null;
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -46,11 +51,22 @@ const extractSection = ($, sectionName) => {
   return null;
 };
 
-// Function to fetch page content
+// Function to fetch page content with timeout
 async function fetchPageContent(url) {
   try {
     console.log(`Fetching content from ${url}...`);
-    const response = await fetch(url);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+
+    clearTimeout(timeout);
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -92,13 +108,23 @@ async function fetchPageContent(url) {
 
     return null;
   } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error(`Timeout while fetching ${url}`);
+      return null;
+    }
     console.error(`Error fetching ${url}:`, error);
     return null;
   }
 }
 
-// Function to fetch website content
+// Function to fetch website content with caching
 async function fetchWebsiteContent() {
+  // Check if we have valid cached content
+  if (contentCache && lastFetchTime && (Date.now() - lastFetchTime < CACHE_DURATION)) {
+    console.log('Returning cached content');
+    return contentCache;
+  }
+
   console.log('Starting content fetch...');
   const baseUrl = 'https://rojapinnamraju-portfolio.netlify.app';
   console.log('Using base URL:', baseUrl);
@@ -128,10 +154,19 @@ async function fetchWebsiteContent() {
       contact: contactContent || {}
     };
 
+    // Update cache
+    contentCache = content;
+    lastFetchTime = Date.now();
+
     console.log('Final combined content:', content);
     return content;
   } catch (error) {
     console.error('Error fetching content:', error);
+    // Return cached content if available, otherwise return default content
+    if (contentCache) {
+      console.log('Returning stale cached content due to error');
+      return contentCache;
+    }
     return {
       about: 'No information available',
       experience: 'No information available',
