@@ -8,10 +8,14 @@
   included_files = ["dist/**/*"]
 
 [[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/ssr"
+  from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
   status = 200
-  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
 
 [dev]
   command = "npm run dev"

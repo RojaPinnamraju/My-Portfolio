@@ -1,17 +1,8 @@
-const { createServer } = require('vite');
 const { resolve } = require('path');
 const fs = require('fs');
 
 exports.handler = async (event, context) => {
   try {
-    // Create Vite server
-    const server = await createServer({
-      root: resolve(process.cwd(), 'dist'),
-      server: {
-        middlewareMode: true,
-      },
-    });
-
     // Get the URL path
     const url = event.path;
     console.log('Rendering URL:', url);
@@ -30,12 +21,8 @@ exports.handler = async (event, context) => {
 
     const indexHtml = fs.readFileSync(indexPath, 'utf-8');
     console.log('Successfully read index.html');
-
-    // Render the app
-    const { html } = await server.transformIndexHtml(url, indexHtml);
-    console.log('Successfully transformed HTML');
     
-    // Return the rendered HTML
+    // Return the HTML
     return {
       statusCode: 200,
       headers: {
@@ -44,7 +31,7 @@ exports.handler = async (event, context) => {
         'Pragma': 'no-cache',
         'Expires': '0'
       },
-      body: html,
+      body: indexHtml,
     };
   } catch (error) {
     console.error('SSR Error:', error);

@@ -9,10 +9,8 @@ const groq = new Groq({
 // Function to fetch website content
 async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
-  // Use the SSR endpoint
-  const baseUrl = process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:8888'
-    : 'https://rojapinnamraju-portfolio.netlify.app';
+  // Use the production URL directly
+  const baseUrl = 'https://rojapinnamraju-portfolio.netlify.app';
   console.log('Using base URL:', baseUrl);
   
   try {
