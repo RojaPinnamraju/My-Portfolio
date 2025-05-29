@@ -115,14 +115,22 @@ async function fetchWebsiteContent() {
   let browser;
   try {
     console.log('Launching browser...');
-    const executablePath = await chromium.executablePath;
+    const executablePath = '/usr/bin/chromium';
     console.log('Chrome executable path:', executablePath);
     
     browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: executablePath || '/usr/bin/google-chrome',
-      headless: chromium.headless,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--disable-extensions',
+        '--single-process',
+        '--no-zygote'
+      ],
+      executablePath,
+      headless: true,
       ignoreHTTPSErrors: true,
     });
     console.log('Browser launched successfully');
