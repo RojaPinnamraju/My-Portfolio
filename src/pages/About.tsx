@@ -227,13 +227,13 @@ const About: React.FC = () => {
           <section data-section="education">
             <VStack spacing={8} align="stretch">
               <Education
-                degree="M.S. in Software Engineering Systems"
+                degree="Master of Science in Computer Science"
                 school="Northeastern University"
-                period="Jan 2022 – Dec 2023"
+                period="2023 - 2025"
                 details={[
-                  "Comprehensive knowledge in software development",
-                  "System design and emerging technologies",
-                  "Advanced programming concepts"
+                  "Specializing in Software Engineering and Artificial Intelligence",
+                  "Relevant Coursework: Data Structures, Algorithms, Software Engineering, Machine Learning",
+                  "GPA: 3.8/4.0"
                 ]}
               />
               <Education
@@ -254,36 +254,17 @@ const About: React.FC = () => {
 
         <Container maxW="container.xl" mb={16}>
           <section data-section="skills">
-            <VStack spacing={8} align="stretch">
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8}>
-                <Stack spacing={6}>
-                  <Heading size="md">Frontend</Heading>
-                  <Skill name="React" level={90} icon={FaReact} />
-                  <Skill name="TypeScript" level={85} icon={SiTypescript} />
-                  <Skill name="JavaScript" level={90} icon={SiJavascript} />
-                  <Skill name="HTML/CSS" level={85} icon={FaCode} />
-                </Stack>
-                <Stack spacing={6}>
-                  <Heading size="md">Backend</Heading>
-                  <Skill name="Node.js" level={85} icon={FaNodeJs} />
-                  <Skill name="Python" level={80} icon={FaPython} />
-                  <Skill name="Django" level={75} icon={FaServer} />
-                </Stack>
-                <Stack spacing={6}>
-                  <Heading size="md">Databases</Heading>
-                  <Skill name="PostgreSQL" level={80} icon={SiPostgresql} />
-                  <Skill name="MongoDB" level={75} icon={SiMongodb} />
-                  <Skill name="MySQL" level={70} icon={SiMysql} />
-                </Stack>
-                <Stack spacing={6}>
-                  <Heading size="md">Tools & Others</Heading>
-                  <Skill name="Git" level={85} icon={FaTools} />
-                  <Skill name="Selenium" level={75} icon={FaTools} />
-                  <Skill name="Google Scripts" level={80} icon={FaTools} />
-                  <Skill name="AI/ML" level={70} icon={FaBrain} />
-                </Stack>
-              </SimpleGrid>
-            </VStack>
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={8}>
+              <Skill name="React" level={90} icon={FaReact} />
+              <Skill name="Node.js" level={85} icon={FaNodeJs} />
+              <Skill name="TypeScript" level={80} icon={SiTypescript} />
+              <Skill name="JavaScript" level={90} icon={SiJavascript} />
+              <Skill name="Python" level={85} icon={FaPython} />
+              <Skill name="Java" level={75} icon={FaJava} />
+              <Skill name="MongoDB" level={80} icon={SiMongodb} />
+              <Skill name="PostgreSQL" level={75} icon={SiPostgresql} />
+              <Skill name="MySQL" level={70} icon={SiMysql} />
+            </SimpleGrid>
           </section>
         </Container>
 

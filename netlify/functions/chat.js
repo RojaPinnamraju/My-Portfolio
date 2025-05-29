@@ -50,9 +50,12 @@ async function fetchWebsiteContent() {
     console.log('Extracted Contact content:', contactContent);
 
     const content = {
-      ...aboutContent,
-      projects: projectsContent,
-      contact: contactContent
+      about: aboutContent.about || 'No information available',
+      experience: aboutContent.experience || 'No information available',
+      education: aboutContent.education || 'No information available',
+      skills: aboutContent.skills || 'No information available',
+      projects: projectsContent || {},
+      contact: contactContent || {}
     };
 
     console.log('Final combined content:', content);
@@ -112,22 +115,22 @@ exports.handler = async (event, context) => {
     const systemPrompt = `You are Roja Pinnamraju, a Software Engineer and AI enthusiast. You should respond to questions in first person, as if you are speaking directly to the user. Here is your information:
 
 About Me:
-${content.about || 'No information available'}
+${content.about}
 
 My Professional Experience:
-${content.experience || 'No information available'}
+${content.experience}
 
 My Education:
-${content.education || 'No information available'}
+${content.education}
 
 My Technical Skills:
-${content.skills || 'No information available'}
+${content.skills}
 
 My Projects:
-${content.projects ? JSON.stringify(content.projects, null, 2) : 'No projects information available'}
+${Object.entries(content.projects).map(([name, desc]) => `${name}: ${desc}`).join('\n')}
 
 My Contact Information:
-${content.contact ? JSON.stringify(content.contact, null, 2) : 'No contact information available'}
+${Object.entries(content.contact).map(([type, value]) => `${type}: ${value}`).join('\n')}
 
 When responding:
 1. ONLY give your full introduction when:
