@@ -16,7 +16,6 @@ async function fetchWebsiteContent() {
   
   let browser;
   try {
-    // Launch browser with modified configuration for Netlify
     console.log('Launching browser...');
     browser = await puppeteer.launch({
       args: [
@@ -53,53 +52,59 @@ async function fetchWebsiteContent() {
       ignoreHTTPSErrors: true,
     });
 
-    // Set a timeout for page loads
-    const pageLoadTimeout = 5000; // 5 seconds
+    const pageLoadTimeout = 5000;
 
-    // Fetch About page content
-    console.log('Fetching About page...');
-    const aboutPage = await browser.newPage();
-    await aboutPage.setDefaultNavigationTimeout(pageLoadTimeout);
-    await aboutPage.goto(`${baseUrl}/about`, { waitUntil: 'networkidle0' });
-    const aboutHtml = await aboutPage.content();
-    console.log('About page HTML length:', aboutHtml.length);
-    await aboutPage.close();
+    async function fetchPageContent(url) {
+      const page = await browser.newPage();
+      try {
+        await page.setDefaultNavigationTimeout(pageLoadTimeout);
+        await page.goto(url, { 
+          waitUntil: 'networkidle0',
+          timeout: pageLoadTimeout 
+        });
+        return await page.content();
+      } catch (error) {
+        console.error(`Error fetching ${url}:`, error);
+        return null;
+      } finally {
+        await page.close().catch(console.error);
+      }
+    }
 
-    // Fetch Projects page content
-    console.log('Fetching Projects page...');
-    const projectsPage = await browser.newPage();
-    await projectsPage.setDefaultNavigationTimeout(pageLoadTimeout);
-    await projectsPage.goto(`${baseUrl}/projects`, { waitUntil: 'networkidle0' });
-    const projectsHtml = await projectsPage.content();
-    console.log('Projects page HTML length:', projectsHtml.length);
-    await projectsPage.close();
-
-    // Fetch Contact page content
-    console.log('Fetching Contact page...');
-    const contactPage = await browser.newPage();
-    await contactPage.setDefaultNavigationTimeout(pageLoadTimeout);
-    await contactPage.goto(`${baseUrl}/contact`, { waitUntil: 'networkidle0' });
-    const contactHtml = await contactPage.content();
-    console.log('Contact page HTML length:', contactHtml.length);
-    await contactPage.close();
+    const [aboutHtml, projectsHtml, contactHtml] = await Promise.all([
+      fetchPageContent(`${baseUrl}/about`),
+      fetchPageContent(`${baseUrl}/projects`),
+      fetchPageContent(`${baseUrl}/contact`)
+    ]);
 
     const content = {
-      about: extractSectionContent(aboutHtml, 'about') || 'No information available',
-      experience: extractSectionContent(aboutHtml, 'experience') || 'No information available',
-      education: extractSectionContent(aboutHtml, 'education') || 'No information available',
-      skills: extractSectionContent(aboutHtml, 'skills') || 'No information available',
-      projects: extractProjectContent(projectsHtml) || {},
-      contact: extractContactContent(contactHtml) || {}
+      about: extractSectionContent(aboutHtml || '', 'about') || 'No information available',
+      experience: extractSectionContent(aboutHtml || '', 'experience') || 'No information available',
+      education: extractSectionContent(aboutHtml || '', 'education') || 'No information available',
+      skills: extractSectionContent(aboutHtml || '', 'skills') || 'No information available',
+      projects: extractProjectContent(projectsHtml || '') || {},
+      contact: extractContactContent(contactHtml || '') || {}
     };
 
     console.log('Final combined content:', content);
     return content;
   } catch (error) {
     console.error('Error fetching content:', error);
-    throw error;
+    return {
+      about: 'No information available',
+      experience: 'No information available',
+      education: 'No information available',
+      skills: 'No information available',
+      projects: {},
+      contact: {}
+    };
   } finally {
     if (browser) {
-      await browser.close();
+      try {
+        await browser.close();
+      } catch (error) {
+        console.error('Error closing browser:', error);
+      }
     }
   }
 }
