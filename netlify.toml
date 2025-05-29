@@ -1,26 +1,19 @@
 [build]
-  command = "cd netlify/functions && npm install && cd ../.. && npm run build"
+  command = "npm run build"
   publish = "dist"
   functions = "netlify/functions"
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["puppeteer"]
-  included_files = ["netlify/functions/package.json"]
-
-[dev]
-  command = "npm run dev"
-  port = 5173
-  targetPort = 5173
-  publish = "dist"
-  autoLaunch = true
-
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
-  status = 200 
+  status = 200
+
+[dev]
+  command = "npm run dev"
+  port = 8888
+  targetPort = 5173
+  publish = "dist"
+  autoLaunch = true 

@@ -9,8 +9,10 @@ const groq = new Groq({
 // Function to fetch website content
 async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
-  // Always use production URL in Netlify Functions
-  const baseUrl = 'https://rojapinnamraju-portfolio.netlify.app';
+  // Use the SSR server URL
+  const baseUrl = process.env.NODE_ENV === 'development' 
+    ? 'http://localhost:3000'
+    : 'https://rojapinnamraju-portfolio.netlify.app';
   console.log('Using base URL:', baseUrl);
   
   try {
