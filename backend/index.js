@@ -127,10 +127,16 @@ async function fetchWebsiteContent() {
         '--disable-software-rasterizer',
         '--disable-extensions',
         '--single-process',
-        '--no-zygote'
+        '--no-zygote',
+        '--disable-setuid-sandbox',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-gpu'
       ],
       headless: true,
       ignoreHTTPSErrors: true,
+      executablePath: process.env.CHROME_BIN || null
     });
     console.log('Browser launched successfully');
 
