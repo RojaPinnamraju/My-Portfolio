@@ -3,10 +3,11 @@ services:
     name: portfolio-backend
     env: node
     rootDir: backend
-    buildCommand: npm install
+    buildCommand: npm ci --production
     startCommand: npm start
     envVars:
       - key: GROQ_API_KEY
         sync: false
       - key: NODE_ENV
-        value: production 
+        value: production
+    healthCheckPath: /health 
