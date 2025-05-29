@@ -11,12 +11,21 @@ async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
   const browser = await puppeteer.launch({
     headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--disable-gpu',
+      '--window-size=1920x1080'
+    ],
+    executablePath: process.env.CHROME_BIN || null
   });
   
   try {
     console.log('Browser launched, navigating to pages...');
     const page = await browser.newPage();
+    await page.setViewport({ width: 1920, height: 1080 });
     const baseUrl = process.env.NODE_ENV === 'production' 
       ? 'https://rojapinnamraju-portfolio.netlify.app'
       : 'http://localhost:5173';
