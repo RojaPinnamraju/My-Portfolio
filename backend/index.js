@@ -74,6 +74,9 @@ async function fetchPageContent(browser, url) {
         return null;
       };
 
+      // Log the entire HTML for debugging
+      console.log('Page HTML:', document.documentElement.outerHTML);
+
       // Extract all sections
       const sections = {
         about: extractSection('about'),
@@ -95,6 +98,7 @@ async function fetchPageContent(browser, url) {
     return content;
   } catch (error) {
     console.error(`Error fetching ${url}:`, error);
+    console.error('Error stack:', error.stack);
     return null;
   } finally {
     try {
