@@ -122,7 +122,11 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/.netlify/functions/chat', {
+      const backendUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://portfolio-backend.onrender.com'
+        : 'http://localhost:3000';
+
+      const response = await fetch(`${backendUrl}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
