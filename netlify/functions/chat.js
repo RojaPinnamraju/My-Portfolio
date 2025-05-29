@@ -9,26 +9,35 @@ const groq = new Groq({
 // Function to fetch website content
 async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
-  const baseUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://rojapinnamraju-portfolio.netlify.app'
-    : 'http://localhost:5173';
+  // Always use production URL in Netlify Functions
+  const baseUrl = 'https://rojapinnamraju-portfolio.netlify.app';
+  console.log('Using base URL:', baseUrl);
   
   try {
     // Fetch About page content
     console.log('Fetching About page...');
     const aboutResponse = await fetch(`${baseUrl}/about`);
+    if (!aboutResponse.ok) {
+      throw new Error(`Failed to fetch About page: ${aboutResponse.status} ${aboutResponse.statusText}`);
+    }
     const aboutHtml = await aboutResponse.text();
     const aboutContent = extractContent(aboutHtml, 'data-section');
 
     // Fetch Projects page content
     console.log('Fetching Projects page...');
     const projectsResponse = await fetch(`${baseUrl}/projects`);
+    if (!projectsResponse.ok) {
+      throw new Error(`Failed to fetch Projects page: ${projectsResponse.status} ${projectsResponse.statusText}`);
+    }
     const projectsHtml = await projectsResponse.text();
     const projectsContent = extractContent(projectsHtml, 'data-project');
 
     // Fetch Contact page content
     console.log('Fetching Contact page...');
     const contactResponse = await fetch(`${baseUrl}/contact`);
+    if (!contactResponse.ok) {
+      throw new Error(`Failed to fetch Contact page: ${contactResponse.status} ${contactResponse.statusText}`);
+    }
     const contactHtml = await contactResponse.text();
     const contactContent = extractContent(contactHtml, 'data-contact');
 
