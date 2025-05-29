@@ -57,22 +57,52 @@ async function fetchWebsiteContent() {
     async function fetchPageContent(url) {
       const page = await browser.newPage();
       try {
-        await page.setDefaultNavigationTimeout(pageLoadTimeout);
+        // Increase timeout for initial page load
+        await page.setDefaultNavigationTimeout(10000);
+        
+        // Navigate to the page
         await page.goto(url, { 
           waitUntil: 'networkidle0',
-          timeout: pageLoadTimeout 
+          timeout: 10000 
         });
 
         // Wait for React content to be rendered
         await page.waitForFunction(() => {
           const root = document.getElementById('root');
           return root && root.children.length > 0;
-        }, { timeout: pageLoadTimeout });
+        }, { timeout: 10000 });
 
-        // Additional wait for content to be fully rendered
-        await page.waitForTimeout(1000);
+        // Use setTimeout instead of waitForTimeout
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-        return await page.content();
+        // Try to find content using selectors
+        const content = await page.evaluate(() => {
+          // Try to find content in various ways
+          const selectors = [
+            '[data-section]',
+            '[role]',
+            '[aria-label]',
+            '.section',
+            '#content',
+            'main',
+            'article'
+          ];
+
+          for (const selector of selectors) {
+            const elements = document.querySelectorAll(selector);
+            if (elements.length > 0) {
+              return Array.from(elements)
+                .map(el => el.textContent)
+                .join(' ')
+                .trim();
+            }
+          }
+
+          // Fallback to getting all text content
+          return document.body.textContent.trim();
+        });
+
+        return content;
       } catch (error) {
         console.error(`Error fetching ${url}:`, error);
         return null;
@@ -123,6 +153,11 @@ async function fetchWebsiteContent() {
 function extractSectionContent(html, sectionAttribute) {
   console.log(`Extracting section with attribute: ${sectionAttribute}`);
   try {
+    if (!html) {
+      console.log(`No HTML content for ${sectionAttribute}`);
+      return null;
+    }
+
     // Try multiple selector strategies
     const selectors = [
       // Try with data-section attribute
