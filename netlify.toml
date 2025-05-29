@@ -5,6 +5,12 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["@sparticuz/chromium"]
+  included_files = ["node_modules/@sparticuz/chromium/bin/**/*"]
+  node_bundler_flags = ["--format=esm"]
+
+[functions.chat]
+  timeout = 30
+  memory = 1024
 
 [[redirects]]
   from = "/*"

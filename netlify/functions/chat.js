@@ -1,7 +1,7 @@
-const { Groq } = require('groq-sdk');
-const fetch = require('node-fetch');
-const puppeteer = require('puppeteer-core');
-const chrome = require('@sparticuz/chromium');
+import { Groq } from 'groq-sdk';
+import fetch from 'node-fetch';
+import puppeteer from 'puppeteer-core';
+import chrome from '@sparticuz/chromium';
 
 // Initialize Groq client
 const groq = new Groq({
@@ -24,61 +24,72 @@ async function fetchWebsiteContent() {
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--disable-extensions',
+        '--disable-component-extensions-with-background-pages',
+        '--disable-default-apps',
+        '--mute-audio',
+        '--no-default-browser-check',
+        '--no-first-run',
+        '--disable-background-networking',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-breakpad',
+        '--disable-client-side-phishing-detection',
+        '--disable-hang-monitor',
+        '--disable-ipc-flooding-protection',
+        '--disable-popup-blocking',
+        '--disable-prompt-on-repost',
+        '--disable-renderer-backgrounding',
+        '--disable-sync',
+        '--force-color-profile=srgb',
+        '--metrics-recording-only',
+        '--no-experiments',
+        '--safebrowsing-disable-auto-update'
       ],
-      defaultViewport: chrome.defaultViewport,
+      defaultViewport: { width: 1280, height: 800 },
       executablePath: process.env.CHROME_EXECUTABLE_PATH || await chrome.executablePath(),
       headless: chrome.headless,
       ignoreHTTPSErrors: true,
     });
 
+    // Set a timeout for page loads
+    const pageLoadTimeout = 5000; // 5 seconds
+
     // Fetch About page content
     console.log('Fetching About page...');
     const aboutPage = await browser.newPage();
+    await aboutPage.setDefaultNavigationTimeout(pageLoadTimeout);
     await aboutPage.goto(`${baseUrl}/about`, { waitUntil: 'networkidle0' });
     const aboutHtml = await aboutPage.content();
     console.log('About page HTML length:', aboutHtml.length);
-    console.log('About page HTML preview:', aboutHtml.substring(0, 200));
-
-    // Extract content using a more robust method
-    const aboutContent = {
-      about: extractSectionContent(aboutHtml, 'data-section="about"'),
-      experience: extractSectionContent(aboutHtml, 'data-section="experience"'),
-      education: extractSectionContent(aboutHtml, 'data-section="education"'),
-      skills: extractSectionContent(aboutHtml, 'data-section="skills"')
-    };
-    console.log('Extracted About content:', aboutContent);
     await aboutPage.close();
 
     // Fetch Projects page content
     console.log('Fetching Projects page...');
     const projectsPage = await browser.newPage();
+    await projectsPage.setDefaultNavigationTimeout(pageLoadTimeout);
     await projectsPage.goto(`${baseUrl}/projects`, { waitUntil: 'networkidle0' });
     const projectsHtml = await projectsPage.content();
     console.log('Projects page HTML length:', projectsHtml.length);
-    console.log('Projects page HTML preview:', projectsHtml.substring(0, 200));
-    const projectsContent = extractProjectContent(projectsHtml);
-    console.log('Extracted Projects content:', projectsContent);
     await projectsPage.close();
 
     // Fetch Contact page content
     console.log('Fetching Contact page...');
     const contactPage = await browser.newPage();
+    await contactPage.setDefaultNavigationTimeout(pageLoadTimeout);
     await contactPage.goto(`${baseUrl}/contact`, { waitUntil: 'networkidle0' });
     const contactHtml = await contactPage.content();
     console.log('Contact page HTML length:', contactHtml.length);
-    console.log('Contact page HTML preview:', contactHtml.substring(0, 200));
-    const contactContent = extractContactContent(contactHtml);
-    console.log('Extracted Contact content:', contactContent);
     await contactPage.close();
 
     const content = {
-      about: aboutContent.about || 'No information available',
-      experience: aboutContent.experience || 'No information available',
-      education: aboutContent.education || 'No information available',
-      skills: aboutContent.skills || 'No information available',
-      projects: projectsContent || {},
-      contact: contactContent || {}
+      about: extractSectionContent(aboutHtml, 'about') || 'No information available',
+      experience: extractSectionContent(aboutHtml, 'experience') || 'No information available',
+      education: extractSectionContent(aboutHtml, 'education') || 'No information available',
+      skills: extractSectionContent(aboutHtml, 'skills') || 'No information available',
+      projects: extractProjectContent(projectsHtml) || {},
+      contact: extractContactContent(contactHtml) || {}
     };
 
     console.log('Final combined content:', content);
@@ -96,29 +107,67 @@ async function fetchWebsiteContent() {
 // Helper function to extract section content
 function extractSectionContent(html, sectionAttribute) {
   console.log(`Extracting section with attribute: ${sectionAttribute}`);
-  const regex = new RegExp(`<[^>]*${sectionAttribute}[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g');
-  const match = regex.exec(html);
-  if (match && match[1]) {
-    // Remove HTML tags and clean up whitespace
-    const content = match[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-    console.log(`Found content for ${sectionAttribute}:`, content);
-    return content;
+  try {
+    // First try with data-section attribute
+    const regex = new RegExp(`<[^>]*${sectionAttribute}[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g');
+    let match = regex.exec(html);
+    
+    if (!match) {
+      // Try with class name as fallback
+      const classRegex = new RegExp(`<[^>]*class="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g');
+      match = classRegex.exec(html);
+    }
+    
+    if (!match) {
+      // Try with id as fallback
+      const idRegex = new RegExp(`<[^>]*id="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g');
+      match = idRegex.exec(html);
+    }
+
+    if (match && match[1]) {
+      // Remove HTML tags and clean up whitespace
+      const content = match[1]
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      console.log(`Found content for ${sectionAttribute}:`, content);
+      return content;
+    }
+    console.log(`No content found for ${sectionAttribute}`);
+    return null;
+  } catch (error) {
+    console.error(`Error extracting ${sectionAttribute}:`, error);
+    return null;
   }
-  console.log(`No content found for ${sectionAttribute}`);
-  return null;
 }
 
 // Helper function to extract project content
 function extractProjectContent(html) {
   console.log('Extracting project content');
   const projects = {};
-  const regex = /<[^>]*data-project="([^"]*)"[^>]*>([\s\S]*?)<\/[^>]*>/g;
-  let match;
-  
-  while ((match = regex.exec(html)) !== null) {
-    const [, name, content] = match;
-    projects[name] = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-    console.log(`Found project: ${name}`);
+  try {
+    // Try multiple selectors
+    const selectors = [
+      /<[^>]*data-project="([^"]*)"[^>]*>([\s\S]*?)<\/[^>]*>/g,
+      /<[^>]*class="[^"]*project[^"]*"[^>]*>([\s\S]*?)<\/[^>]*>/g,
+      /<[^>]*id="[^"]*project[^"]*"[^>]*>([\s\S]*?)<\/[^>]*>/g
+    ];
+
+    for (const regex of selectors) {
+      let match;
+      while ((match = regex.exec(html)) !== null) {
+        const [, name, content] = match;
+        if (name && content) {
+          projects[name] = content
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          console.log(`Found project: ${name}`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error extracting projects:', error);
   }
   
   console.log('Extracted projects:', projects);
@@ -129,13 +178,29 @@ function extractProjectContent(html) {
 function extractContactContent(html) {
   console.log('Extracting contact content');
   const contacts = {};
-  const regex = /<[^>]*data-contact="([^"]*)"[^>]*>([\s\S]*?)<\/[^>]*>/g;
-  let match;
-  
-  while ((match = regex.exec(html)) !== null) {
-    const [, type, content] = match;
-    contacts[type] = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-    console.log(`Found contact: ${type}`);
+  try {
+    // Try multiple selectors
+    const selectors = [
+      /<[^>]*data-contact="([^"]*)"[^>]*>([\s\S]*?)<\/[^>]*>/g,
+      /<[^>]*class="[^"]*contact[^"]*"[^>]*>([\s\S]*?)<\/[^>]*>/g,
+      /<[^>]*id="[^"]*contact[^"]*"[^>]*>([\s\S]*?)<\/[^>]*>/g
+    ];
+
+    for (const regex of selectors) {
+      let match;
+      while ((match = regex.exec(html)) !== null) {
+        const [, type, content] = match;
+        if (type && content) {
+          contacts[type] = content
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          console.log(`Found contact: ${type}`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error extracting contacts:', error);
   }
   
   console.log('Extracted contacts:', contacts);
@@ -143,7 +208,7 @@ function extractContactContent(html) {
 }
 
 // Chat endpoint
-exports.handler = async (event, context) => {
+export const handler = async (event, context) => {
   // Handle CORS
   if (event.httpMethod === 'OPTIONS') {
     return {
