@@ -45,13 +45,13 @@ const extractSection = ($, sectionName) => {
   const section = $(`section[data-section="${sectionName}"]`);
   if (section.length > 0) {
     console.log(`Found section with data-section="${sectionName}"`);
-    const text = section.find('p, Text, div').text();
+    const text = section.find('Text, p, div').text();
     console.log(`Extracted text: ${text}`);
     return cleanText(text);
   }
 
   // Try to find by heading and following content
-  const heading = $(`h1, h2, h3, h4, h5, h6`).filter((i, el) => {
+  const heading = $(`h1, h2, h3, h4, h5, h6, [class*="heading"]`).filter((i, el) => {
     return $(el).text().toLowerCase().includes(sectionName.toLowerCase());
   });
 
@@ -59,7 +59,7 @@ const extractSection = ($, sectionName) => {
     console.log(`Found heading: ${heading.text()}`);
     const content = [];
     let current = heading.next();
-    while (current.length > 0 && !current.is('h1, h2, h3, h4, h5, h6')) {
+    while (current.length > 0 && !current.is('h1, h2, h3, h4, h5, h6, [class*="heading"]')) {
       content.push(cleanText(current.text()));
       current = current.next();
     }
@@ -72,7 +72,7 @@ const extractSection = ($, sectionName) => {
   const classSection = $(`[class*="${sectionName.toLowerCase()}"]`);
   if (classSection.length > 0) {
     console.log(`Found section with class containing "${sectionName}"`);
-    const text = classSection.find('p, Text, div').text();
+    const text = classSection.find('Text, p, div').text();
     console.log(`Extracted text from class: ${text}`);
     return cleanText(text);
   }
@@ -87,9 +87,9 @@ const extractSkills = ($) => {
   const skills = [];
   
   // Look for skill components
-  $('.skill, [class*="skill"], [class*="Skill"]').each((i, el) => {
-    const name = $(el).find('h3, h4, .skill-name, .name, Text, div').text();
-    const level = $(el).find('progress, Progress').attr('value') || 0;
+  $('.skill, [class*="skill"], [class*="Skill"], [class*="chakra-stack"]').each((i, el) => {
+    const name = $(el).find('Text, [class*="chakra-text"], [class*="chakra-heading"]').text();
+    const level = $(el).find('progress, [class*="chakra-progress"]').attr('value') || 0;
     if (name) {
       console.log(`Found skill: ${name} with level ${level}`);
       skills.push({
@@ -103,9 +103,9 @@ const extractSkills = ($) => {
   if (skills.length === 0) {
     const skillsSection = $('section[data-section="skills"]');
     if (skillsSection.length > 0) {
-      skillsSection.find('.skill, [class*="skill"], [class*="Skill"]').each((i, el) => {
-        const name = $(el).find('h3, h4, .skill-name, .name, Text, div').text();
-        const level = $(el).find('progress, Progress').attr('value') || 0;
+      skillsSection.find('.skill, [class*="skill"], [class*="Skill"], [class*="chakra-stack"]').each((i, el) => {
+        const name = $(el).find('Text, [class*="chakra-text"], [class*="chakra-heading"]').text();
+        const level = $(el).find('progress, [class*="chakra-progress"]').attr('value') || 0;
         if (name) {
           console.log(`Found skill in section: ${name} with level ${level}`);
           skills.push({
@@ -127,12 +127,12 @@ const extractExperience = ($) => {
   const experiences = [];
   
   // Look for experience components
-  $('.experience, [class*="experience"], [class*="Experience"]').each((i, el) => {
-    const title = $(el).find('h3, h4, .job-title, .title, Heading, div').text();
-    const company = $(el).find('.company, .employer, [class*="company"]').text();
-    const period = $(el).find('.period, .date, [class*="period"]').text();
+  $('.experience, [class*="experience"], [class*="Experience"], [class*="chakra-stack"]').each((i, el) => {
+    const title = $(el).find('[class*="chakra-heading"], [class*="chakra-text"], Text').text();
+    const company = $(el).find('[class*="chakra-text"], [class*="company"], [class*="employer"]').text();
+    const period = $(el).find('[class*="chakra-text"], [class*="period"], [class*="date"]').text();
     const description = [];
-    $(el).find('li, .description-item, [class*="description"], Text, div').each((j, item) => {
+    $(el).find('li, [class*="chakra-text"], [class*="description"], Text').each((j, item) => {
       const text = $(item).text().trim();
       if (text && !text.startsWith('•')) {
         description.push(cleanText(text));
@@ -154,12 +154,12 @@ const extractExperience = ($) => {
   if (experiences.length === 0) {
     const expSection = $('section[data-section="experience"]');
     if (expSection.length > 0) {
-      expSection.find('.experience, [class*="experience"], [class*="Experience"]').each((i, el) => {
-        const title = $(el).find('h3, h4, .job-title, .title, Heading, div').text();
-        const company = $(el).find('.company, .employer, [class*="company"]').text();
-        const period = $(el).find('.period, .date, [class*="period"]').text();
+      expSection.find('.experience, [class*="experience"], [class*="Experience"], [class*="chakra-stack"]').each((i, el) => {
+        const title = $(el).find('[class*="chakra-heading"], [class*="chakra-text"], Text').text();
+        const company = $(el).find('[class*="chakra-text"], [class*="company"], [class*="employer"]').text();
+        const period = $(el).find('[class*="chakra-text"], [class*="period"], [class*="date"]').text();
         const description = [];
-        $(el).find('li, .description-item, [class*="description"], Text, div').each((j, item) => {
+        $(el).find('li, [class*="chakra-text"], [class*="description"], Text').each((j, item) => {
           const text = $(item).text().trim();
           if (text && !text.startsWith('•')) {
             description.push(cleanText(text));
@@ -189,12 +189,12 @@ const extractEducation = ($) => {
   const education = [];
   
   // Look for education components
-  $('.education, [class*="education"], [class*="Education"]').each((i, el) => {
-    const degree = $(el).find('h3, h4, .degree, .title, Heading').text();
-    const school = $(el).find('.school, .institution, [class*="school"]').text();
-    const period = $(el).find('.period, .date, [class*="period"]').text();
+  $('.education, [class*="education"], [class*="Education"], [class*="chakra-stack"]').each((i, el) => {
+    const degree = $(el).find('[class*="chakra-heading"], [class*="chakra-text"], Text').text();
+    const school = $(el).find('[class*="chakra-text"], [class*="school"], [class*="institution"]').text();
+    const period = $(el).find('[class*="chakra-text"], [class*="period"], [class*="date"]').text();
     const details = [];
-    $(el).find('li, .detail-item, [class*="detail"], Text').each((j, item) => {
+    $(el).find('li, [class*="chakra-text"], [class*="detail"], Text').each((j, item) => {
       const text = $(item).text().trim();
       if (text && !text.startsWith('•')) {
         details.push(cleanText(text));
@@ -216,12 +216,12 @@ const extractEducation = ($) => {
   if (education.length === 0) {
     const eduSection = $('section[data-section="education"]');
     if (eduSection.length > 0) {
-      eduSection.find('.education, [class*="education"], [class*="Education"]').each((i, el) => {
-        const degree = $(el).find('h3, h4, .degree, .title, Heading').text();
-        const school = $(el).find('.school, .institution, [class*="school"]').text();
-        const period = $(el).find('.period, .date, [class*="period"]').text();
+      eduSection.find('.education, [class*="education"], [class*="Education"], [class*="chakra-stack"]').each((i, el) => {
+        const degree = $(el).find('[class*="chakra-heading"], [class*="chakra-text"], Text').text();
+        const school = $(el).find('[class*="chakra-text"], [class*="school"], [class*="institution"]').text();
+        const period = $(el).find('[class*="chakra-text"], [class*="period"], [class*="date"]').text();
         const details = [];
-        $(el).find('li, .detail-item, [class*="detail"], Text').each((j, item) => {
+        $(el).find('li, [class*="chakra-text"], [class*="detail"], Text').each((j, item) => {
           const text = $(item).text().trim();
           if (text && !text.startsWith('•')) {
             details.push(cleanText(text));
