@@ -17,7 +17,9 @@ async function fetchWebsiteContent() {
       '--disable-dev-shm-usage',
       '--disable-accelerated-2d-canvas',
       '--disable-gpu',
-      '--window-size=1920x1080'
+      '--window-size=1920x1080',
+      '--single-process',
+      '--no-zygote'
     ],
     executablePath: process.env.CHROME_BIN || null
   });
@@ -31,6 +33,7 @@ async function fetchWebsiteContent() {
       : 'http://localhost:5173';
     
     // Fetch About page content
+    console.log('Navigating to About page...');
     await page.goto(`${baseUrl}/about`, {
       waitUntil: 'networkidle0',
       timeout: 30000
@@ -47,6 +50,7 @@ async function fetchWebsiteContent() {
     });
 
     // Fetch Projects page content
+    console.log('Navigating to Projects page...');
     await page.goto(`${baseUrl}/projects`, {
       waitUntil: 'networkidle0',
       timeout: 30000
@@ -63,6 +67,7 @@ async function fetchWebsiteContent() {
     });
 
     // Fetch Contact page content
+    console.log('Navigating to Contact page...');
     await page.goto(`${baseUrl}/contact`, {
       waitUntil: 'networkidle0',
       timeout: 30000
@@ -84,13 +89,18 @@ async function fetchWebsiteContent() {
       contact: contactContent
     };
     
-    console.log('Content extracted:', content);
+    console.log('Content extracted successfully');
     return content;
   } catch (error) {
     console.error('Error fetching content:', error);
     throw error;
   } finally {
-    await browser.close();
+    try {
+      await browser.close();
+      console.log('Browser closed successfully');
+    } catch (error) {
+      console.error('Error closing browser:', error);
+    }
   }
 }
 
@@ -126,16 +136,16 @@ exports.handler = async (event, context) => {
     const systemPrompt = `You are Roja Pinnamraju, a Software Engineer and AI enthusiast. You should respond to questions in first person, as if you are speaking directly to the user. Here is your information:
 
 About Me:
-${content.about}
+${content.about || 'No information available'}
 
 My Professional Experience:
-${content.experience}
+${content.experience || 'No information available'}
 
 My Education:
-${content.education}
+${content.education || 'No information available'}
 
 My Technical Skills:
-${content.skills}
+${content.skills || 'No information available'}
 
 My Projects:
 ${content.projects ? JSON.stringify(content.projects, null, 2) : 'No projects information available'}
