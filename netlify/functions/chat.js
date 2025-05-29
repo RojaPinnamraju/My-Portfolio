@@ -16,13 +16,19 @@ async function fetchWebsiteContent() {
   
   let browser;
   try {
-    // Launch browser
+    // Launch browser with modified configuration for Netlify
     console.log('Launching browser...');
     browser = await puppeteer.launch({
-      args: chrome.args,
+      args: [
+        ...chrome.args,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ],
       defaultViewport: chrome.defaultViewport,
-      executablePath: await chrome.executablePath(),
-      headless: true,
+      executablePath: process.env.CHROME_EXECUTABLE_PATH || await chrome.executablePath(),
+      headless: chrome.headless,
       ignoreHTTPSErrors: true,
     });
 

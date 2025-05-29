@@ -1,16 +1,10 @@
 [build]
-  command = "npm install && npm run build"
-  publish = "dist"
+  command = "npm run build"
   functions = "netlify/functions"
 
 [functions]
   node_bundler = "esbuild"
-  included_files = ["dist/**/*", "node_modules/@sparticuz/chromium/bin/**/*"]
-
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
+  external_node_modules = ["@sparticuz/chromium"]
 
 [[redirects]]
   from = "/*"
