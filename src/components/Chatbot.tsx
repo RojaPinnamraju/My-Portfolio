@@ -113,47 +113,32 @@ const Chatbot = () => {
     onOpen();
   };
 
-  const handleSend = async (message: string) => {
-    if (!message.trim()) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
 
-    const userMessage: Message = { role: 'user', content: message };
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, { role: 'user', content: input }]);
     setInput('');
     setIsLoading(true);
 
     try {
-      const backendUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://portfolio-backend.onrender.com'
-        : 'http://localhost:3000';
-
-      const response = await fetch(`${backendUrl}/chat`, {
+      const response = await fetch('/.netlify/functions/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message: input }),
       });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error('Failed to get response');
       }
 
       const data = await response.json();
-      const assistantMessage: Message = { role: 'assistant', content: data.response };
-      setMessages(prev => [...prev, assistantMessage]);
-      try {
-        messageSound.currentTime = 0;
-        await messageSound.play();
-      } catch (error) {
-        console.error('Error playing message sound:', error);
-      }
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
     } catch (error) {
       console.error('Error:', error);
-      const errorMessage: Message = {
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
     } finally {
       setIsLoading(false);
     }
@@ -326,7 +311,7 @@ const Chatbot = () => {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask about experience, skills, or projects..."
-                  onKeyPress={(e) => e.key === 'Enter' && handleSend(input)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSubmit(e)}
                   disabled={isLoading}
                   size="lg"
                   _focus={{
@@ -336,7 +321,7 @@ const Chatbot = () => {
                 />
                 <Button
                   colorScheme="brand"
-                  onClick={() => handleSend(input)}
+                  onClick={handleSubmit}
                   isLoading={isLoading}
                   size="lg"
                   px={6}

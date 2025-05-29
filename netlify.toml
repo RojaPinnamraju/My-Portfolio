@@ -3,9 +3,13 @@
   publish = "dist"
   functions = "netlify/functions"
 
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["puppeteer"]
+
 [dev]
-  command = "npm run dev:all"
-  port = 8888
+  command = "npm run dev"
+  port = 5173
   targetPort = 5173
   publish = "dist"
   autoLaunch = true

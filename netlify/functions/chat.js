@@ -1,10 +1,12 @@
-import { Groq } from 'groq-sdk';
-import puppeteer from 'puppeteer';
+const { Groq } = require('groq-sdk');
+const puppeteer = require('puppeteer');
 
+// Initialize Groq client
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
+// Function to fetch website content
 async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
   const browser = await puppeteer.launch({
@@ -15,9 +17,12 @@ async function fetchWebsiteContent() {
   try {
     console.log('Browser launched, navigating to pages...');
     const page = await browser.newPage();
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://rojapinnamraju-portfolio.netlify.app'
+      : 'http://localhost:5173';
     
     // Fetch About page content
-    await page.goto('/about', {
+    await page.goto(`${baseUrl}/about`, {
       waitUntil: 'networkidle0',
       timeout: 30000
     });
@@ -33,7 +38,7 @@ async function fetchWebsiteContent() {
     });
 
     // Fetch Projects page content
-    await page.goto('/projects', {
+    await page.goto(`${baseUrl}/projects`, {
       waitUntil: 'networkidle0',
       timeout: 30000
     });
@@ -49,7 +54,7 @@ async function fetchWebsiteContent() {
     });
 
     // Fetch Contact page content
-    await page.goto('/contact', {
+    await page.goto(`${baseUrl}/contact`, {
       waitUntil: 'networkidle0',
       timeout: 30000
     });
@@ -80,41 +85,9 @@ async function fetchWebsiteContent() {
   }
 }
 
-// Content endpoint
-export const content = async (event) => {
-  try {
-    console.log('Received content request');
-    const content = await fetchWebsiteContent();
-    console.log('Sending content response');
-    
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS'
-      },
-      body: JSON.stringify(content)
-    };
-  } catch (error) {
-    console.error('Error serving content:', error);
-    return {
-      statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS'
-      },
-      body: JSON.stringify({ error: 'Failed to fetch content', details: error.message })
-    };
-  }
-};
-
 // Chat endpoint
-export const handler = async (event) => {
-  // Handle CORS preflight requests
+exports.handler = async (event, context) => {
+  // Handle CORS
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
@@ -124,14 +97,6 @@ export const handler = async (event) => {
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
       },
       body: ''
-    };
-  }
-
-  // Only allow POST
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      body: 'Method Not Allowed'
     };
   }
 
@@ -230,23 +195,25 @@ When responding:
     return {
       statusCode: 200,
       headers: {
-        'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ response: completion.choices[0].message.content })
     };
   } catch (error) {
     console.error('Error in chat endpoint:', error);
     console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      status: error.status
+    });
     return {
       statusCode: 500,
       headers: {
-        'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ 
         error: 'Sorry, I encountered an error. Please try again.',
