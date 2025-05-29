@@ -6,7 +6,9 @@
   node_bundler = "esbuild"
   external_node_modules = ["@sparticuz/chromium"]
   included_files = ["node_modules/@sparticuz/chromium/bin/**/*"]
-  node_bundler_flags = ["--format=esm"]
+
+[functions.node_bundler_flags]
+  format = "esm"
 
 [functions.chat]
   timeout = 30
