@@ -14,7 +14,7 @@ let lastFetchTime = null;
 
 // CORS configuration
 const corsOptions = {
-  origin: ['https://rojapinnamraju-portfolio.netlify.app', 'http://localhost:3000'],
+  origin: '*', // Allow all origins in development
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -242,7 +242,7 @@ async function fetchPageContent(url, retries = 3) {
     try {
       console.log(`Fetching content from ${url} (attempt ${attempt}/${retries})...`);
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
       const response = await fetch(url, {
         signal: controller.signal,
@@ -252,7 +252,8 @@ async function fetchPageContent(url, retries = 3) {
           'Accept-Language': 'en-US,en;q=0.5',
           'Connection': 'keep-alive',
           'Upgrade-Insecure-Requests': '1'
-        }
+        },
+        timeout: 30000 // 30 second timeout
       });
 
       clearTimeout(timeout);
@@ -263,52 +264,14 @@ async function fetchPageContent(url, retries = 3) {
 
       const html = await response.text();
       console.log('Content fetched successfully');
-
-      // Load HTML into cheerio
-      const $ = cheerio.load(html);
-      
-      // Extract content based on page type
-      if (url.includes('/about')) {
-        const content = {
-          about: extractSection($, 'about'),
-          experience: extractExperience($),
-          education: extractEducation($),
-          skills: extractSkills($)
-        };
-        console.log('Extracted about page content:', content);
-        return content;
-      } else if (url.includes('/projects')) {
-        const projects = {};
-        $('.project, [class*="project"]').each((i, el) => {
-          const title = $(el).find('.project-title, h3, h4, .title').text();
-          const description = $(el).find('.project-description, .description, [class*="description"]').text();
-          if (title) {
-            projects[cleanText(title)] = cleanText(description);
-          }
-        });
-        console.log('Extracted projects:', projects);
-        return projects;
-      } else if (url.includes('/contact')) {
-        const contact = {};
-        $('.contact-item, [class*="contact"]').each((i, el) => {
-          const type = $(el).find('.contact-type, .type, [class*="type"]').text();
-          const value = $(el).find('.contact-value, .value, [class*="value"]').text();
-          if (type) {
-            contact[cleanText(type)] = cleanText(value);
-          }
-        });
-        console.log('Extracted contact info:', contact);
-        return contact;
-      }
-
-      return null;
+      return html;
     } catch (error) {
       console.error(`Error fetching ${url} (attempt ${attempt}/${retries}):`, error);
       if (attempt === retries) {
         throw error;
       }
-      // Wait before retrying
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      // Wait before retrying with exponential backoff
+      await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
     }
   }
 }
@@ -403,16 +366,14 @@ app.get('/health', (req, res) => {
 app.get('/api/content', async (req, res) => {
   try {
     console.log('Received request for content');
-    res.setHeader('Content-Type', 'application/json');
     const content = await fetchWebsiteContent();
     console.log('Sending response:', content);
     res.json(content);
   } catch (error) {
     console.error('Error in /api/content endpoint:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to fetch content',
-      message: error.message,
-      timestamp: new Date().toISOString()
+      message: error.message
     });
   }
 });
@@ -420,11 +381,9 @@ app.get('/api/content', async (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  res.setHeader('Content-Type', 'application/json');
-  res.status(500).json({ 
-    error: 'Internal server error',
-    message: err.message,
-    timestamp: new Date().toISOString()
+  res.status(500).json({
+    error: 'Internal Server Error',
+    message: err.message
   });
 });
 
