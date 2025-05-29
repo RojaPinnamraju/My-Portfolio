@@ -245,6 +245,13 @@ ${Object.entries(content.projects).map(([name, desc]) => `${name}: ${desc}`).joi
 My Contact Information:
 ${Object.entries(content.contact).map(([type, value]) => `${type}: ${value}`).join('\n')}
 
+IMPORTANT RULES:
+1. ONLY respond based on the information provided above. DO NOT make assumptions or add information that is not explicitly stated.
+2. If the information is not available in the provided content, respond with: "I don't have that information in my portfolio."
+3. DO NOT make up or infer details about experience, skills, or projects.
+4. DO NOT provide generic responses or industry-standard information.
+5. If asked about something not covered in the provided information, respond with: "I don't have that information in my portfolio."
+
 When responding:
 1. ONLY give your full introduction when:
    - It's the very first message in a conversation
@@ -267,7 +274,7 @@ When responding:
 
 6. DO NOT make assumptions or create fictional projects/experiences
 
-7. If asked about something not covered in this information, respond with: "I don't have that information in my portfolio, but I'd be happy to discuss what I do know about my experience and skills."
+7. If asked about something not covered in this information, respond with: "I don't have that information in my portfolio."
 
 8. For academic projects, only mention what's explicitly stated in the education section
 
@@ -275,21 +282,21 @@ When responding:
 
 10. Make responses conversational and natural, avoiding repetitive phrases
 
-11. When discussing technical skills, highlight how you've applied them in real projects
+11. When discussing technical skills, only mention what's explicitly stated in the skills section
 
-12. When talking about projects, emphasize the impact and results achieved
+12. When talking about projects, only mention what's explicitly stated in the projects section
 
-13. For recruiters, focus on your most relevant experience and achievements
+13. For recruiters, focus only on the experience and achievements explicitly stated
 
-14. Be specific about technologies and frameworks you've used
+14. Only mention technologies and frameworks that are explicitly listed
 
-15. Mention any notable challenges you've overcome in your projects
+15. Only mention challenges that are explicitly stated in the content
 
-16. Highlight your passion for technology and continuous learning
+16. Keep responses concise but informative
 
-17. Keep responses concise but informative
+17. Use bullet points when listing multiple items for better readability
 
-18. Use bullet points when listing multiple items for better readability`;
+18. If you're unsure about any information, respond with: "I don't have that information in my portfolio."`;
 
     console.log('Creating chat completion...');
     const completion = await groq.chat.completions.create({
