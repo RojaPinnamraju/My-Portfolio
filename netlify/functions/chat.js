@@ -26,6 +26,11 @@ async function fetchWebsiteContent() {
       contactResponse.text()
     ]);
 
+    // Log raw HTML for debugging
+    console.log('About page HTML:', aboutHtml);
+    console.log('Projects page HTML:', projectsHtml);
+    console.log('Contact page HTML:', contactHtml);
+
     const content = {
       about: extractSectionContent(aboutHtml || '', 'about') || 'No information available',
       experience: extractSectionContent(aboutHtml || '', 'experience') || 'No information available',
@@ -70,7 +75,13 @@ function extractSectionContent(html, sectionAttribute) {
       // Try with role
       new RegExp(`<[^>]*role="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g'),
       // Try with aria-label
-      new RegExp(`<[^>]*aria-label="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g')
+      new RegExp(`<[^>]*aria-label="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g'),
+      // Try with specific React component names
+      new RegExp(`<[^>]*className="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g'),
+      // Try with div and section tags
+      new RegExp(`<(div|section)[^>]*>([\\s\\S]*?${sectionAttribute}[\\s\\S]*?)<\\/(div|section)>`, 'g'),
+      // Try with any tag containing the section name
+      new RegExp(`<[^>]*>([\\s\\S]*?${sectionAttribute}[\\s\\S]*?)<\\/[^>]*>`, 'g')
     ];
 
     for (const regex of selectors) {
@@ -119,7 +130,9 @@ function extractProjectContent(html) {
     const selectors = [
       /<[^>]*data-project="([^"]*)"[^>]*>([\s\S]*?)<\/[^>]*>/g,
       /<[^>]*class="[^"]*project[^"]*"[^>]*>([\s\S]*?)<\/[^>]*>/g,
-      /<[^>]*id="[^"]*project[^"]*"[^>]*>([\s\S]*?)<\/[^>]*>/g
+      /<[^>]*id="[^"]*project[^"]*"[^>]*>([\s\S]*?)<\/[^>]*>/g,
+      /<[^>]*className="[^"]*project[^"]*"[^>]*>([\s\S]*?)<\/[^>]*>/g,
+      /<(div|section)[^>]*>([\s\S]*?project[\s\S]*?)<\/(div|section)>/g
     ];
 
     for (const regex of selectors) {
@@ -157,7 +170,9 @@ function extractContactContent(html) {
     const selectors = [
       /<[^>]*data-contact="([^"]*)"[^>]*>([\s\S]*?)<\/[^>]*>/g,
       /<[^>]*class="[^"]*contact[^"]*"[^>]*>([\s\S]*?)<\/[^>]*>/g,
-      /<[^>]*id="[^"]*contact[^"]*"[^>]*>([\s\S]*?)<\/[^>]*>/g
+      /<[^>]*id="[^"]*contact[^"]*"[^>]*>([\s\S]*?)<\/[^>]*>/g,
+      /<[^>]*className="[^"]*contact[^"]*"[^>]*>([\s\S]*?)<\/[^>]*>/g,
+      /<(div|section)[^>]*>([\s\S]*?contact[\s\S]*?)<\/(div|section)>/g
     ];
 
     for (const regex of selectors) {
