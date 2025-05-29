@@ -1,5 +1,5 @@
 const { Groq } = require('groq-sdk');
-const puppeteer = require('puppeteer');
+const fetch = require('node-fetch');
 
 // Initialize Groq client
 const groq = new Groq({
@@ -9,99 +9,55 @@ const groq = new Groq({
 // Function to fetch website content
 async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
-  const browser = await puppeteer.launch({
-    headless: 'new',
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--disable-gpu',
-      '--window-size=1920x1080',
-      '--single-process',
-      '--no-zygote'
-    ],
-    executablePath: process.env.CHROME_BIN || null
-  });
+  const baseUrl = process.env.NODE_ENV === 'production' 
+    ? 'https://rojapinnamraju-portfolio.netlify.app'
+    : 'http://localhost:5173';
   
   try {
-    console.log('Browser launched, navigating to pages...');
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1920, height: 1080 });
-    const baseUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://rojapinnamraju-portfolio.netlify.app'
-      : 'http://localhost:5173';
-    
     // Fetch About page content
-    console.log('Navigating to About page...');
-    await page.goto(`${baseUrl}/about`, {
-      waitUntil: 'networkidle0',
-      timeout: 30000
-    });
-    
-    console.log('About page loaded, extracting content...');
-    const aboutContent = await page.evaluate(() => {
-      const sections = {};
-      document.querySelectorAll('[data-section]').forEach(element => {
-        const sectionName = element.getAttribute('data-section');
-        sections[sectionName] = element.textContent.trim();
-      });
-      return sections;
-    });
+    console.log('Fetching About page...');
+    const aboutResponse = await fetch(`${baseUrl}/about`);
+    const aboutHtml = await aboutResponse.text();
+    const aboutContent = extractContent(aboutHtml, 'data-section');
 
     // Fetch Projects page content
-    console.log('Navigating to Projects page...');
-    await page.goto(`${baseUrl}/projects`, {
-      waitUntil: 'networkidle0',
-      timeout: 30000
-    });
-    
-    console.log('Projects page loaded, extracting content...');
-    const projectsContent = await page.evaluate(() => {
-      const projects = {};
-      document.querySelectorAll('[data-project]').forEach(element => {
-        const projectName = element.getAttribute('data-project');
-        projects[projectName] = element.textContent.trim();
-      });
-      return projects;
-    });
+    console.log('Fetching Projects page...');
+    const projectsResponse = await fetch(`${baseUrl}/projects`);
+    const projectsHtml = await projectsResponse.text();
+    const projectsContent = extractContent(projectsHtml, 'data-project');
 
     // Fetch Contact page content
-    console.log('Navigating to Contact page...');
-    await page.goto(`${baseUrl}/contact`, {
-      waitUntil: 'networkidle0',
-      timeout: 30000
-    });
-    
-    console.log('Contact page loaded, extracting content...');
-    const contactContent = await page.evaluate(() => {
-      const contact = {};
-      document.querySelectorAll('[data-contact]').forEach(element => {
-        const contactName = element.getAttribute('data-contact');
-        contact[contactName] = element.textContent.trim();
-      });
-      return contact;
-    });
-    
+    console.log('Fetching Contact page...');
+    const contactResponse = await fetch(`${baseUrl}/contact`);
+    const contactHtml = await contactResponse.text();
+    const contactContent = extractContent(contactHtml, 'data-contact');
+
     const content = {
       ...aboutContent,
       projects: projectsContent,
       contact: contactContent
     };
-    
+
     console.log('Content extracted successfully');
     return content;
   } catch (error) {
     console.error('Error fetching content:', error);
     throw error;
-  } finally {
-    try {
-      await browser.close();
-      console.log('Browser closed successfully');
-    } catch (error) {
-      console.error('Error closing browser:', error);
-    }
   }
+}
+
+// Helper function to extract content from HTML
+function extractContent(html, attribute) {
+  const sections = {};
+  const regex = new RegExp(`<[^>]*${attribute}="([^"]*)"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g');
+  let match;
+  
+  while ((match = regex.exec(html)) !== null) {
+    const [, name, content] = match;
+    sections[name] = content.trim();
+  }
+  
+  return sections;
 }
 
 // Chat endpoint
