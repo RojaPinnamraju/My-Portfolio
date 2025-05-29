@@ -39,24 +39,95 @@ const cleanText = (text) => {
 
 // Function to extract section content
 const extractSection = ($, sectionName) => {
-  const selectors = [
-    `[data-section="${sectionName}"]`,
-    `[data-testid="${sectionName}"]`,
-    `[role="${sectionName}"]`,
-    `[aria-label="${sectionName}"]`,
-    `.${sectionName}`,
-    `#${sectionName}`
-  ];
-
-  for (const selector of selectors) {
-    const element = $(selector);
-    if (element.length > 0) {
-      console.log(`Found element with selector: ${selector}`);
-      return cleanText(element.text());
-    }
+  // First try to find the section by data-section attribute
+  const section = $(`section[data-section="${sectionName}"]`);
+  if (section.length > 0) {
+    console.log(`Found section with data-section="${sectionName}"`);
+    return cleanText(section.text());
   }
+
+  // If not found, try to find by heading and following content
+  const heading = $(`h1, h2, h3, h4, h5, h6`).filter((i, el) => {
+    return $(el).text().toLowerCase().includes(sectionName.toLowerCase());
+  });
+
+  if (heading.length > 0) {
+    console.log(`Found section with heading containing "${sectionName}"`);
+    const content = [];
+    let current = heading.next();
+    while (current.length > 0 && !current.is('h1, h2, h3, h4, h5, h6')) {
+      content.push(cleanText(current.text()));
+      current = current.next();
+    }
+    return content.join(' ');
+  }
+
   console.log(`No element found for section: ${sectionName}`);
   return null;
+};
+
+// Function to extract skills
+const extractSkills = ($) => {
+  const skills = [];
+  $('.skill, [class*="skill"]').each((i, el) => {
+    const name = $(el).find('h3, h4, .skill-name').text();
+    const level = $(el).find('.skill-level, progress').attr('value') || 0;
+    if (name) {
+      skills.push({
+        name: cleanText(name),
+        level: parseInt(level) || 0
+      });
+    }
+  });
+  return skills;
+};
+
+// Function to extract experience
+const extractExperience = ($) => {
+  const experiences = [];
+  $('.experience, [class*="experience"]').each((i, el) => {
+    const title = $(el).find('h3, h4, .job-title').text();
+    const company = $(el).find('.company, .employer').text();
+    const period = $(el).find('.period, .date').text();
+    const description = [];
+    $(el).find('li, .description-item').each((j, item) => {
+      description.push(cleanText($(item).text()));
+    });
+    
+    if (title) {
+      experiences.push({
+        title: cleanText(title),
+        company: cleanText(company),
+        period: cleanText(period),
+        description: description
+      });
+    }
+  });
+  return experiences;
+};
+
+// Function to extract education
+const extractEducation = ($) => {
+  const education = [];
+  $('.education, [class*="education"]').each((i, el) => {
+    const degree = $(el).find('h3, h4, .degree').text();
+    const school = $(el).find('.school, .institution').text();
+    const period = $(el).find('.period, .date').text();
+    const details = [];
+    $(el).find('li, .detail-item').each((j, item) => {
+      details.push(cleanText($(item).text()));
+    });
+    
+    if (degree) {
+      education.push({
+        degree: cleanText(degree),
+        school: cleanText(school),
+        period: cleanText(period),
+        details: details
+      });
+    }
+  });
+  return education;
 };
 
 // Function to fetch page content with timeout
@@ -88,15 +159,15 @@ async function fetchPageContent(url) {
     if (url.includes('/about')) {
       return {
         about: extractSection($, 'about'),
-        experience: extractSection($, 'experience'),
-        education: extractSection($, 'education'),
-        skills: extractSection($, 'skills')
+        experience: extractExperience($),
+        education: extractEducation($),
+        skills: extractSkills($)
       };
     } else if (url.includes('/projects')) {
       const projects = {};
-      $('[data-section="projects"] .project, [data-testid="projects"] .project').each((i, el) => {
-        const title = $(el).find('.project-title').text();
-        const description = $(el).find('.project-description').text();
+      $('.project, [class*="project"]').each((i, el) => {
+        const title = $(el).find('.project-title, h3, h4').text();
+        const description = $(el).find('.project-description, .description').text();
         if (title) {
           projects[cleanText(title)] = cleanText(description);
         }
@@ -104,9 +175,9 @@ async function fetchPageContent(url) {
       return projects;
     } else if (url.includes('/contact')) {
       const contact = {};
-      $('[data-section="contact"] .contact-item, [data-testid="contact"] .contact-item').each((i, el) => {
-        const type = $(el).find('.contact-type').text();
-        const value = $(el).find('.contact-value').text();
+      $('.contact-item, [class*="contact"]').each((i, el) => {
+        const type = $(el).find('.contact-type, .type').text();
+        const value = $(el).find('.contact-value, .value').text();
         if (type) {
           contact[cleanText(type)] = cleanText(value);
         }
