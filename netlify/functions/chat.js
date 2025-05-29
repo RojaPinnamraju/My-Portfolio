@@ -80,7 +80,53 @@ async function fetchWebsiteContent() {
   }
 }
 
+// Content endpoint
+export const content = async (event) => {
+  try {
+    console.log('Received content request');
+    const content = await fetchWebsiteContent();
+    console.log('Sending content response');
+    
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS'
+      },
+      body: JSON.stringify(content)
+    };
+  } catch (error) {
+    console.error('Error serving content:', error);
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS'
+      },
+      body: JSON.stringify({ error: 'Failed to fetch content', details: error.message })
+    };
+  }
+};
+
+// Chat endpoint
 export const handler = async (event) => {
+  // Handle CORS preflight requests
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+      },
+      body: ''
+    };
+  }
+
   // Only allow POST
   if (event.httpMethod !== 'POST') {
     return {
@@ -193,8 +239,15 @@ When responding:
     };
   } catch (error) {
     console.error('Error in chat endpoint:', error);
+    console.error('Error stack:', error.stack);
     return {
       statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+      },
       body: JSON.stringify({ 
         error: 'Sorry, I encountered an error. Please try again.',
         details: error.message,
