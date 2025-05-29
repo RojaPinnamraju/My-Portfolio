@@ -1,37 +1,38 @@
 const { Groq } = require('groq-sdk');
 const fetch = require('node-fetch');
+const puppeteer = require('puppeteer-core');
+const chrome = require('@sparticuz/chromium');
 
 // Initialize Groq client
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-// Function to fetch website content
+// Function to fetch website content using Puppeteer
 async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
-  // Use the production URL directly
   const baseUrl = 'https://rojapinnamraju-portfolio.netlify.app';
   console.log('Using base URL:', baseUrl);
   
+  let browser;
   try {
+    // Launch browser
+    console.log('Launching browser...');
+    browser = await puppeteer.launch({
+      args: chrome.args,
+      defaultViewport: chrome.defaultViewport,
+      executablePath: await chrome.executablePath(),
+      headless: true,
+      ignoreHTTPSErrors: true,
+    });
+
     // Fetch About page content
     console.log('Fetching About page...');
-    const aboutResponse = await fetch(`${baseUrl}/about`, {
-      headers: {
-        'Accept': 'text/html',
-        'User-Agent': 'Mozilla/5.0 (compatible; PortfolioBot/1.0)',
-        'Cache-Control': 'no-cache'
-      }
-    });
-    
-    if (!aboutResponse.ok) {
-      console.error('About page fetch failed:', aboutResponse.status, aboutResponse.statusText);
-      throw new Error(`Failed to fetch About page: ${aboutResponse.status} ${aboutResponse.statusText}`);
-    }
-    
-    const aboutHtml = await aboutResponse.text();
+    const aboutPage = await browser.newPage();
+    await aboutPage.goto(`${baseUrl}/about`, { waitUntil: 'networkidle0' });
+    const aboutHtml = await aboutPage.content();
     console.log('About page HTML length:', aboutHtml.length);
-    console.log('About page HTML preview:', aboutHtml.substring(0, 200)); // Log first 200 chars for debugging
+    console.log('About page HTML preview:', aboutHtml.substring(0, 200));
 
     // Extract content using a more robust method
     const aboutContent = {
@@ -41,48 +42,29 @@ async function fetchWebsiteContent() {
       skills: extractSectionContent(aboutHtml, 'data-section="skills"')
     };
     console.log('Extracted About content:', aboutContent);
+    await aboutPage.close();
 
     // Fetch Projects page content
     console.log('Fetching Projects page...');
-    const projectsResponse = await fetch(`${baseUrl}/projects`, {
-      headers: {
-        'Accept': 'text/html',
-        'User-Agent': 'Mozilla/5.0 (compatible; PortfolioBot/1.0)',
-        'Cache-Control': 'no-cache'
-      }
-    });
-    
-    if (!projectsResponse.ok) {
-      console.error('Projects page fetch failed:', projectsResponse.status, projectsResponse.statusText);
-      throw new Error(`Failed to fetch Projects page: ${projectsResponse.status} ${projectsResponse.statusText}`);
-    }
-    
-    const projectsHtml = await projectsResponse.text();
+    const projectsPage = await browser.newPage();
+    await projectsPage.goto(`${baseUrl}/projects`, { waitUntil: 'networkidle0' });
+    const projectsHtml = await projectsPage.content();
     console.log('Projects page HTML length:', projectsHtml.length);
-    console.log('Projects page HTML preview:', projectsHtml.substring(0, 200)); // Log first 200 chars for debugging
+    console.log('Projects page HTML preview:', projectsHtml.substring(0, 200));
     const projectsContent = extractProjectContent(projectsHtml);
     console.log('Extracted Projects content:', projectsContent);
+    await projectsPage.close();
 
     // Fetch Contact page content
     console.log('Fetching Contact page...');
-    const contactResponse = await fetch(`${baseUrl}/contact`, {
-      headers: {
-        'Accept': 'text/html',
-        'User-Agent': 'Mozilla/5.0 (compatible; PortfolioBot/1.0)',
-        'Cache-Control': 'no-cache'
-      }
-    });
-    
-    if (!contactResponse.ok) {
-      console.error('Contact page fetch failed:', contactResponse.status, contactResponse.statusText);
-      throw new Error(`Failed to fetch Contact page: ${contactResponse.status} ${contactResponse.statusText}`);
-    }
-    
-    const contactHtml = await contactResponse.text();
+    const contactPage = await browser.newPage();
+    await contactPage.goto(`${baseUrl}/contact`, { waitUntil: 'networkidle0' });
+    const contactHtml = await contactPage.content();
     console.log('Contact page HTML length:', contactHtml.length);
-    console.log('Contact page HTML preview:', contactHtml.substring(0, 200)); // Log first 200 chars for debugging
+    console.log('Contact page HTML preview:', contactHtml.substring(0, 200));
     const contactContent = extractContactContent(contactHtml);
     console.log('Extracted Contact content:', contactContent);
+    await contactPage.close();
 
     const content = {
       about: aboutContent.about || 'No information available',
@@ -98,6 +80,10 @@ async function fetchWebsiteContent() {
   } catch (error) {
     console.error('Error fetching content:', error);
     throw error;
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
   }
 }
 
