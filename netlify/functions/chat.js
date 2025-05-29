@@ -1,24 +1,77 @@
 import { Groq } from 'groq-sdk';
-import fetch from 'node-fetch';
+import { chromium } from 'playwright-core';
 
 // Initialize Groq client
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-// Function to fetch page content with retries
-async function fetchWithRetry(url, retries = 3, delay = 1000) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+// Function to fetch page content
+async function fetchPageContent(browser, url) {
+  const page = await browser.newPage();
+  let content = null;
+  
+  try {
+    // Navigate to the page
+    await page.goto(url, { waitUntil: 'networkidle' });
+    
+    // Wait for React to render
+    await page.waitForSelector('#root', { state: 'attached' });
+    
+    // Additional wait for dynamic content
+    await page.waitForTimeout(2000);
+
+    // Extract content using multiple strategies
+    content = await page.evaluate(() => {
+      // Function to clean text content
+      const cleanText = (text) => text.replace(/\s+/g, ' ').trim();
+
+      // Function to extract section content
+      const extractSection = (sectionName) => {
+        // Try multiple selectors
+        const selectors = [
+          `[data-section="${sectionName}"]`,
+          `[data-testid="${sectionName}"]`,
+          `[role="${sectionName}"]`,
+          `[aria-label="${sectionName}"]`,
+          `.${sectionName}`,
+          `#${sectionName}`
+        ];
+
+        for (const selector of selectors) {
+          const element = document.querySelector(selector);
+          if (element) {
+            return cleanText(element.textContent);
+          }
+        }
+        return null;
+      };
+
+      // Extract all sections
+      const sections = {
+        about: extractSection('about'),
+        experience: extractSection('experience'),
+        education: extractSection('education'),
+        skills: extractSection('skills')
+      };
+
+      // If no sections found, try to find any text content
+      if (!Object.values(sections).some(Boolean)) {
+        return cleanText(document.body.textContent);
       }
-      return await response.text();
+
+      return sections;
+    });
+
+    return content;
+  } catch (error) {
+    console.error(`Error fetching ${url}:`, error);
+    return null;
+  } finally {
+    try {
+      await page.close();
     } catch (error) {
-      console.error(`Attempt ${i + 1} failed:`, error);
-      if (i === retries - 1) throw error;
-      await new Promise(resolve => setTimeout(resolve, delay));
+      console.error('Error closing page:', error);
     }
   }
 }
@@ -29,27 +82,57 @@ async function fetchWebsiteContent() {
   const baseUrl = 'https://rojapinnamraju-portfolio.netlify.app';
   console.log('Using base URL:', baseUrl);
   
+  let browser;
   try {
-    // Fetch pages with retries
-    const [aboutHtml, projectsHtml, contactHtml] = await Promise.all([
-      fetchWithRetry(`${baseUrl}/about`),
-      fetchWithRetry(`${baseUrl}/projects`),
-      fetchWithRetry(`${baseUrl}/contact`)
-    ]);
+    console.log('Launching browser...');
+    browser = await chromium.launch({
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-extensions',
+        '--disable-component-extensions-with-background-pages',
+        '--disable-default-apps',
+        '--mute-audio',
+        '--no-default-browser-check',
+        '--no-first-run',
+        '--disable-background-networking',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-breakpad',
+        '--disable-client-side-phishing-detection',
+        '--disable-hang-monitor',
+        '--disable-ipc-flooding-protection',
+        '--disable-popup-blocking',
+        '--disable-prompt-on-repost',
+        '--disable-renderer-backgrounding',
+        '--disable-sync',
+        '--force-color-profile=srgb',
+        '--metrics-recording-only',
+        '--no-experiments',
+        '--safebrowsing-disable-auto-update'
+      ],
+      headless: true
+    });
+
+    // Fetch pages sequentially
+    const aboutContent = await fetchPageContent(browser, `${baseUrl}/about`);
+    const projectsContent = await fetchPageContent(browser, `${baseUrl}/projects`);
+    const contactContent = await fetchPageContent(browser, `${baseUrl}/contact`);
 
     // Log raw content for debugging
-    console.log('About page content:', aboutHtml);
-    console.log('Projects page content:', projectsHtml);
-    console.log('Contact page content:', contactHtml);
+    console.log('About page content:', aboutContent);
+    console.log('Projects page content:', projectsContent);
+    console.log('Contact page content:', contactContent);
 
-    // Extract content from HTML
     const content = {
-      about: extractSectionContent(aboutHtml, 'about') || 'No information available',
-      experience: extractSectionContent(aboutHtml, 'experience') || 'No information available',
-      education: extractSectionContent(aboutHtml, 'education') || 'No information available',
-      skills: extractSectionContent(aboutHtml, 'skills') || 'No information available',
-      projects: extractProjectContent(projectsHtml) || {},
-      contact: extractContactContent(contactHtml) || {}
+      about: aboutContent?.about || 'No information available',
+      experience: aboutContent?.experience || 'No information available',
+      education: aboutContent?.education || 'No information available',
+      skills: aboutContent?.skills || 'No information available',
+      projects: extractProjectContent(projectsContent || '') || {},
+      contact: extractContactContent(contactContent || '') || {}
     };
 
     console.log('Final combined content:', content);
@@ -64,67 +147,14 @@ async function fetchWebsiteContent() {
       projects: {},
       contact: {}
     };
-  }
-}
-
-// Helper function to extract section content
-function extractSectionContent(html, sectionAttribute) {
-  console.log(`Extracting section with attribute: ${sectionAttribute}`);
-  try {
-    if (!html) {
-      console.log(`No HTML content for ${sectionAttribute}`);
-      return null;
-    }
-
-    // Try multiple selector strategies
-    const selectors = [
-      // Try with data-section attribute
-      new RegExp(`<[^>]*data-section="${sectionAttribute}"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g'),
-      // Try with class name
-      new RegExp(`<[^>]*class="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g'),
-      // Try with id
-      new RegExp(`<[^>]*id="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g'),
-      // Try with role
-      new RegExp(`<[^>]*role="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g'),
-      // Try with aria-label
-      new RegExp(`<[^>]*aria-label="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g'),
-      // Try with specific React component names
-      new RegExp(`<[^>]*className="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g'),
-      // Try with div and section tags
-      new RegExp(`<(div|section)[^>]*>([\\s\\S]*?${sectionAttribute}[\\s\\S]*?)<\\/(div|section)>`, 'g'),
-      // Try with any tag containing the section name
-      new RegExp(`<[^>]*>([\\s\\S]*?${sectionAttribute}[\\s\\S]*?)<\\/[^>]*>`, 'g')
-    ];
-
-    for (const regex of selectors) {
-      const match = regex.exec(html);
-      if (match && match[1]) {
-        // Remove HTML tags and clean up whitespace
-        const content = match[1]
-          .replace(/<[^>]*>/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-        console.log(`Found content for ${sectionAttribute}:`, content);
-        return content;
+  } finally {
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (error) {
+        console.error('Error closing browser:', error);
       }
     }
-
-    // If no content found, try to find any text content in the page
-    const textContent = html
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    
-    if (textContent && textContent.length > 0) {
-      console.log(`Using fallback content for ${sectionAttribute}`);
-      return textContent;
-    }
-
-    console.log(`No content found for ${sectionAttribute}`);
-    return null;
-  } catch (error) {
-    console.error(`Error extracting ${sectionAttribute}:`, error);
-    return null;
   }
 }
 
