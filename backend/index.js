@@ -1,6 +1,5 @@
 const express = require('express');
-const puppeteer = require('puppeteer-core');
-const chromium = require('chrome-aws-lambda');
+const puppeteer = require('puppeteer');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -115,9 +114,6 @@ async function fetchWebsiteContent() {
   let browser;
   try {
     console.log('Launching browser...');
-    const executablePath = '/usr/bin/chromium';
-    console.log('Chrome executable path:', executablePath);
-    
     browser = await puppeteer.launch({
       args: [
         '--no-sandbox',
@@ -129,7 +125,6 @@ async function fetchWebsiteContent() {
         '--single-process',
         '--no-zygote'
       ],
-      executablePath,
       headless: true,
       ignoreHTTPSErrors: true,
     });
