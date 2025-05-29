@@ -21,6 +21,17 @@ export default defineConfig({
       output: {
         format: 'esm',
       },
+      external: [
+        'react-helmet-async',
+        'react',
+        'react-dom',
+        'react-router-dom',
+        '@chakra-ui/react',
+        '@emotion/react',
+        '@emotion/styled',
+        'framer-motion',
+        'react-icons'
+      ],
     },
   },
   server: {
