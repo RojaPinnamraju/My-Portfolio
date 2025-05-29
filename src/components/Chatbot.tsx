@@ -21,7 +21,7 @@ import {
   Tooltip,
   Image,
 } from '@chakra-ui/react';
-import { ChatIcon, CloseIcon } from '@chakra-ui/icons';
+import { CloseIcon } from '@chakra-ui/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import profileImage from '../assets/profile_converted.png';
 
