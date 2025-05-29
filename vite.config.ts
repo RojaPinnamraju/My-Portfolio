@@ -27,6 +27,7 @@ export default defineConfig({
         'react-dom',
         'react-router-dom',
         '@chakra-ui/react',
+        '@chakra-ui/icons',
         '@emotion/react',
         '@emotion/styled',
         'framer-motion',
