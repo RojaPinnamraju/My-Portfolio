@@ -174,28 +174,10 @@ async function fetchWebsiteContent() {
   }
 }
 
-// API endpoint to fetch content
-app.get('/api/content', async (req, res) => {
-  try {
-    console.log('Received request for content');
-    const content = await fetchWebsiteContent();
-    console.log('Sending response:', content);
-    res.json(content);
-  } catch (error) {
-    console.error('Error in /api/content endpoint:', error);
-    res.status(500).json({ error: 'Failed to fetch content' });
-  }
-});
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  console.log('Health check requested');
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
 // Root endpoint
 app.get('/', (req, res) => {
   console.log('Root endpoint requested');
+  res.setHeader('Content-Type', 'application/json');
   res.json({ 
     message: 'Portfolio content extraction service is running',
     timestamp: new Date().toISOString(),
@@ -206,12 +188,53 @@ app.get('/', (req, res) => {
   });
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  console.log('Health check requested');
+  res.setHeader('Content-Type', 'application/json');
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    service: 'portfolio-backend'
+  });
+});
+
+// API endpoint to fetch content
+app.get('/api/content', async (req, res) => {
+  try {
+    console.log('Received request for content');
+    res.setHeader('Content-Type', 'application/json');
+    const content = await fetchWebsiteContent();
+    console.log('Sending response:', content);
+    res.json(content);
+  } catch (error) {
+    console.error('Error in /api/content endpoint:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch content',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
+  res.setHeader('Content-Type', 'application/json');
   res.status(500).json({ 
     error: 'Internal server error',
     message: err.message,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  console.log('404 Not Found:', req.method, req.url);
+  res.setHeader('Content-Type', 'application/json');
+  res.status(404).json({
+    error: 'Not Found',
+    message: `Cannot ${req.method} ${req.url}`,
     timestamp: new Date().toISOString()
   });
 });
