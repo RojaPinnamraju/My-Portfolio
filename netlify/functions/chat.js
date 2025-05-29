@@ -8,89 +8,8 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-// Function to fetch website content using Puppeteer
-async function fetchWebsiteContent() {
-  console.log('Starting content fetch...');
-  const baseUrl = 'https://rojapinnamraju-portfolio.netlify.app';
-  console.log('Using base URL:', baseUrl);
-  
-  let browser;
-  try {
-    console.log('Launching browser...');
-    browser = await puppeteer.launch({
-      args: [
-        ...chrome.args,
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-extensions',
-        '--disable-component-extensions-with-background-pages',
-        '--disable-default-apps',
-        '--mute-audio',
-        '--no-default-browser-check',
-        '--no-first-run',
-        '--disable-background-networking',
-        '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-breakpad',
-        '--disable-client-side-phishing-detection',
-        '--disable-hang-monitor',
-        '--disable-ipc-flooding-protection',
-        '--disable-popup-blocking',
-        '--disable-prompt-on-repost',
-        '--disable-renderer-backgrounding',
-        '--disable-sync',
-        '--force-color-profile=srgb',
-        '--metrics-recording-only',
-        '--no-experiments',
-        '--safebrowsing-disable-auto-update'
-      ],
-      defaultViewport: { width: 1280, height: 800 },
-      executablePath: process.env.CHROME_EXECUTABLE_PATH || await chrome.executablePath(),
-      headless: chrome.headless,
-      ignoreHTTPSErrors: true,
-    });
-
-    // Fetch pages sequentially instead of in parallel
-    const aboutHtml = await fetchPageContent(`${baseUrl}/about`);
-    const projectsHtml = await fetchPageContent(`${baseUrl}/projects`);
-    const contactHtml = await fetchPageContent(`${baseUrl}/contact`);
-
-    const content = {
-      about: extractSectionContent(aboutHtml || '', 'about') || 'No information available',
-      experience: extractSectionContent(aboutHtml || '', 'experience') || 'No information available',
-      education: extractSectionContent(aboutHtml || '', 'education') || 'No information available',
-      skills: extractSectionContent(aboutHtml || '', 'skills') || 'No information available',
-      projects: extractProjectContent(projectsHtml || '') || {},
-      contact: extractContactContent(contactHtml || '') || {}
-    };
-
-    console.log('Final combined content:', content);
-    return content;
-  } catch (error) {
-    console.error('Error fetching content:', error);
-    return {
-      about: 'No information available',
-      experience: 'No information available',
-      education: 'No information available',
-      skills: 'No information available',
-      projects: {},
-      contact: {}
-    };
-  } finally {
-    if (browser) {
-      try {
-        await browser.close();
-      } catch (error) {
-        console.error('Error closing browser:', error);
-      }
-    }
-  }
-}
-
-// Function to fetch website content using Puppeteer
-async function fetchPageContent(url) {
+// Function to fetch page content
+async function fetchPageContent(browser, url) {
   const page = await browser.newPage();
   let content = null;
   
@@ -155,6 +74,87 @@ async function fetchPageContent(url) {
       await page.close();
     } catch (error) {
       console.error('Error closing page:', error);
+    }
+  }
+}
+
+// Function to fetch website content using Puppeteer
+async function fetchWebsiteContent() {
+  console.log('Starting content fetch...');
+  const baseUrl = 'https://rojapinnamraju-portfolio.netlify.app';
+  console.log('Using base URL:', baseUrl);
+  
+  let browser;
+  try {
+    console.log('Launching browser...');
+    browser = await puppeteer.launch({
+      args: [
+        ...chrome.args,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-extensions',
+        '--disable-component-extensions-with-background-pages',
+        '--disable-default-apps',
+        '--mute-audio',
+        '--no-default-browser-check',
+        '--no-first-run',
+        '--disable-background-networking',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-breakpad',
+        '--disable-client-side-phishing-detection',
+        '--disable-hang-monitor',
+        '--disable-ipc-flooding-protection',
+        '--disable-popup-blocking',
+        '--disable-prompt-on-repost',
+        '--disable-renderer-backgrounding',
+        '--disable-sync',
+        '--force-color-profile=srgb',
+        '--metrics-recording-only',
+        '--no-experiments',
+        '--safebrowsing-disable-auto-update'
+      ],
+      defaultViewport: { width: 1280, height: 800 },
+      executablePath: process.env.CHROME_EXECUTABLE_PATH || await chrome.executablePath(),
+      headless: chrome.headless,
+      ignoreHTTPSErrors: true,
+    });
+
+    // Fetch pages sequentially instead of in parallel
+    const aboutHtml = await fetchPageContent(browser, `${baseUrl}/about`);
+    const projectsHtml = await fetchPageContent(browser, `${baseUrl}/projects`);
+    const contactHtml = await fetchPageContent(browser, `${baseUrl}/contact`);
+
+    const content = {
+      about: extractSectionContent(aboutHtml || '', 'about') || 'No information available',
+      experience: extractSectionContent(aboutHtml || '', 'experience') || 'No information available',
+      education: extractSectionContent(aboutHtml || '', 'education') || 'No information available',
+      skills: extractSectionContent(aboutHtml || '', 'skills') || 'No information available',
+      projects: extractProjectContent(projectsHtml || '') || {},
+      contact: extractContactContent(contactHtml || '') || {}
+    };
+
+    console.log('Final combined content:', content);
+    return content;
+  } catch (error) {
+    console.error('Error fetching content:', error);
+    return {
+      about: 'No information available',
+      experience: 'No information available',
+      education: 'No information available',
+      skills: 'No information available',
+      projects: {},
+      contact: {}
+    };
+  } finally {
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (error) {
+        console.error('Error closing browser:', error);
+      }
     }
   }
 }
