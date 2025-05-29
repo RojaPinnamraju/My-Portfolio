@@ -8,7 +8,7 @@
   included_files = ["dist/**/*", "node_modules/@sparticuz/chromium/bin/**/*"]
 
 [[redirects]]
-  from = "/.netlify/functions/*"
+  from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
 
