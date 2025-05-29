@@ -10,6 +10,12 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Add request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
 // Function to fetch page content
 async function fetchPageContent(browser, url) {
   const page = await browser.newPage();
@@ -171,7 +177,9 @@ async function fetchWebsiteContent() {
 // API endpoint to fetch content
 app.get('/api/content', async (req, res) => {
   try {
+    console.log('Received request for content');
     const content = await fetchWebsiteContent();
+    console.log('Sending response:', content);
     res.json(content);
   } catch (error) {
     console.error('Error in /api/content endpoint:', error);
@@ -181,10 +189,39 @@ app.get('/api/content', async (req, res) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+  console.log('Health check requested');
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  console.log('Root endpoint requested');
+  res.json({ 
+    message: 'Portfolio content extraction service is running',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/health',
+      content: '/api/content'
+    }
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: err.message,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Start server
-app.listen(port, () => {
+const server = app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Available endpoints:`);
+  console.log(`- GET /`);
+  console.log(`- GET /health`);
+  console.log(`- GET /api/content`);
 }); 
