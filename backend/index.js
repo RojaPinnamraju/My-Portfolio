@@ -1,7 +1,6 @@
 const express = require('express');
-const puppeteer = require('puppeteer-core');
 const cors = require('cors');
-const path = require('path');
+const fetch = require('node-fetch');
 require('dotenv').config();
 
 const app = express();
@@ -19,94 +18,48 @@ app.use((req, res, next) => {
 });
 
 // Function to fetch page content
-async function fetchPageContent(browser, url) {
-  const page = await browser.newPage();
-  let content = null;
-  
+async function fetchPageContent(url) {
   try {
-    console.log(`Navigating to ${url}...`);
-    // Navigate to the page
-    await page.goto(url, { 
-      waitUntil: 'networkidle0',
-      timeout: 30000 
-    });
-    console.log('Page loaded successfully');
-    
-    // Wait for React to render
-    console.log('Waiting for React root element...');
-    await page.waitForSelector('#root', { 
-      state: 'attached',
-      timeout: 30000 
-    });
-    console.log('React root element found');
-    
-    // Additional wait for dynamic content
-    console.log('Waiting for dynamic content...');
-    await page.waitForTimeout(2000);
-    console.log('Dynamic content wait complete');
+    console.log(`Fetching content from ${url}...`);
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const html = await response.text();
+    console.log('Content fetched successfully');
 
-    // Extract content using multiple strategies
-    console.log('Extracting content...');
-    content = await page.evaluate(() => {
-      // Function to clean text content
-      const cleanText = (text) => text.replace(/\s+/g, ' ').trim();
+    // Extract content using regex patterns
+    const extractSection = (html, sectionName) => {
+      const patterns = [
+        new RegExp(`<[^>]*data-section="${sectionName}"[^>]*>(.*?)</[^>]*>`, 's'),
+        new RegExp(`<[^>]*data-testid="${sectionName}"[^>]*>(.*?)</[^>]*>`, 's'),
+        new RegExp(`<[^>]*role="${sectionName}"[^>]*>(.*?)</[^>]*>`, 's'),
+        new RegExp(`<[^>]*aria-label="${sectionName}"[^>]*>(.*?)</[^>]*>`, 's'),
+        new RegExp(`<[^>]*class="${sectionName}"[^>]*>(.*?)</[^>]*>`, 's'),
+        new RegExp(`<[^>]*id="${sectionName}"[^>]*>(.*?)</[^>]*>`, 's')
+      ];
 
-      // Function to extract section content
-      const extractSection = (sectionName) => {
-        console.log(`Extracting section: ${sectionName}`);
-        // Try multiple selectors
-        const selectors = [
-          `[data-section="${sectionName}"]`,
-          `[data-testid="${sectionName}"]`,
-          `[role="${sectionName}"]`,
-          `[aria-label="${sectionName}"]`,
-          `.${sectionName}`,
-          `#${sectionName}`
-        ];
-
-        for (const selector of selectors) {
-          const element = document.querySelector(selector);
-          if (element) {
-            console.log(`Found element with selector: ${selector}`);
-            return cleanText(element.textContent);
-          }
+      for (const pattern of patterns) {
+        const match = html.match(pattern);
+        if (match && match[1]) {
+          return match[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
         }
-        console.log(`No element found for section: ${sectionName}`);
-        return null;
-      };
-
-      // Log the entire HTML for debugging
-      console.log('Page HTML:', document.documentElement.outerHTML);
-
-      // Extract all sections
-      const sections = {
-        about: extractSection('about'),
-        experience: extractSection('experience'),
-        education: extractSection('education'),
-        skills: extractSection('skills')
-      };
-
-      // If no sections found, try to find any text content
-      if (!Object.values(sections).some(Boolean)) {
-        console.log('No sections found, extracting all text content');
-        return cleanText(document.body.textContent);
       }
+      return null;
+    };
 
-      return sections;
-    });
+    const content = {
+      about: extractSection(html, 'about'),
+      experience: extractSection(html, 'experience'),
+      education: extractSection(html, 'education'),
+      skills: extractSection(html, 'skills')
+    };
 
-    console.log('Content extracted:', content);
+    console.log('Extracted content:', content);
     return content;
   } catch (error) {
     console.error(`Error fetching ${url}:`, error);
-    console.error('Error stack:', error.stack);
     return null;
-  } finally {
-    try {
-      await page.close();
-    } catch (error) {
-      console.error('Error closing page:', error);
-    }
   }
 }
 
@@ -116,50 +69,20 @@ async function fetchWebsiteContent() {
   const baseUrl = 'https://rojapinnamraju-portfolio.netlify.app';
   console.log('Using base URL:', baseUrl);
   
-  let browser;
   try {
-    console.log('Launching browser...');
-    const executablePath = '/usr/bin/chromium-browser';
-    console.log('Chrome executable path:', executablePath);
-    
-    // Set Puppeteer cache directory
-    process.env.PUPPETEER_CACHE_DIR = '/opt/render/.cache/puppeteer';
-    console.log('Puppeteer cache directory:', process.env.PUPPETEER_CACHE_DIR);
-    
-    browser = await puppeteer.launch({
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-software-rasterizer',
-        '--disable-extensions',
-        '--single-process',
-        '--no-zygote',
-        '--disable-setuid-sandbox',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
-      ],
-      executablePath,
-      headless: true,
-      ignoreHTTPSErrors: true,
-      userDataDir: '/opt/render/.cache/puppeteer/user-data'
-    });
-    console.log('Browser launched successfully');
-
-    // Fetch pages sequentially
+    // Fetch about page content
     console.log('Fetching about page content...');
-    const aboutContent = await fetchPageContent(browser, `${baseUrl}/about`);
+    const aboutContent = await fetchPageContent(`${baseUrl}/about`);
     console.log('About page content:', aboutContent);
 
+    // Fetch projects page content
     console.log('Fetching projects page content...');
-    const projectsContent = await fetchPageContent(browser, `${baseUrl}/projects`);
+    const projectsContent = await fetchPageContent(`${baseUrl}/projects`);
     console.log('Projects page content:', projectsContent);
 
+    // Fetch contact page content
     console.log('Fetching contact page content...');
-    const contactContent = await fetchPageContent(browser, `${baseUrl}/contact`);
+    const contactContent = await fetchPageContent(`${baseUrl}/contact`);
     console.log('Contact page content:', contactContent);
 
     const content = {
@@ -183,14 +106,6 @@ async function fetchWebsiteContent() {
       projects: {},
       contact: {}
     };
-  } finally {
-    if (browser) {
-      try {
-        await browser.close();
-      } catch (error) {
-        console.error('Error closing browser:', error);
-      }
-    }
   }
 }
 
