@@ -9,8 +9,10 @@ const groq = new Groq({
 // Function to fetch website content
 async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
-  // Use the production URL directly since we're in a serverless function
-  const baseUrl = 'https://rojapinnamraju-portfolio.netlify.app';
+  // Use the SSR endpoint
+  const baseUrl = process.env.NODE_ENV === 'development' 
+    ? 'http://localhost:8888'
+    : 'https://rojapinnamraju-portfolio.netlify.app';
   console.log('Using base URL:', baseUrl);
   
   try {
@@ -19,7 +21,8 @@ async function fetchWebsiteContent() {
     const aboutResponse = await fetch(`${baseUrl}/about`, {
       headers: {
         'Accept': 'text/html',
-        'User-Agent': 'Mozilla/5.0 (compatible; PortfolioBot/1.0)'
+        'User-Agent': 'Mozilla/5.0 (compatible; PortfolioBot/1.0)',
+        'Cache-Control': 'no-cache'
       }
     });
     
@@ -46,7 +49,8 @@ async function fetchWebsiteContent() {
     const projectsResponse = await fetch(`${baseUrl}/projects`, {
       headers: {
         'Accept': 'text/html',
-        'User-Agent': 'Mozilla/5.0 (compatible; PortfolioBot/1.0)'
+        'User-Agent': 'Mozilla/5.0 (compatible; PortfolioBot/1.0)',
+        'Cache-Control': 'no-cache'
       }
     });
     
@@ -66,7 +70,8 @@ async function fetchWebsiteContent() {
     const contactResponse = await fetch(`${baseUrl}/contact`, {
       headers: {
         'Accept': 'text/html',
-        'User-Agent': 'Mozilla/5.0 (compatible; PortfolioBot/1.0)'
+        'User-Agent': 'Mozilla/5.0 (compatible; PortfolioBot/1.0)',
+        'Cache-Control': 'no-cache'
       }
     });
     
