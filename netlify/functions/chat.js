@@ -62,6 +62,16 @@ async function fetchWebsiteContent() {
           waitUntil: 'networkidle0',
           timeout: pageLoadTimeout 
         });
+
+        // Wait for React content to be rendered
+        await page.waitForFunction(() => {
+          const root = document.getElementById('root');
+          return root && root.children.length > 0;
+        }, { timeout: pageLoadTimeout });
+
+        // Additional wait for content to be fully rendered
+        await page.waitForTimeout(1000);
+
         return await page.content();
       } catch (error) {
         console.error(`Error fetching ${url}:`, error);
@@ -113,31 +123,44 @@ async function fetchWebsiteContent() {
 function extractSectionContent(html, sectionAttribute) {
   console.log(`Extracting section with attribute: ${sectionAttribute}`);
   try {
-    // First try with data-section attribute
-    const regex = new RegExp(`<[^>]*${sectionAttribute}[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g');
-    let match = regex.exec(html);
-    
-    if (!match) {
-      // Try with class name as fallback
-      const classRegex = new RegExp(`<[^>]*class="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g');
-      match = classRegex.exec(html);
-    }
-    
-    if (!match) {
-      // Try with id as fallback
-      const idRegex = new RegExp(`<[^>]*id="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g');
-      match = idRegex.exec(html);
+    // Try multiple selector strategies
+    const selectors = [
+      // Try with data-section attribute
+      new RegExp(`<[^>]*data-section="${sectionAttribute}"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g'),
+      // Try with class name
+      new RegExp(`<[^>]*class="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g'),
+      // Try with id
+      new RegExp(`<[^>]*id="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g'),
+      // Try with role
+      new RegExp(`<[^>]*role="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g'),
+      // Try with aria-label
+      new RegExp(`<[^>]*aria-label="[^"]*${sectionAttribute}[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g')
+    ];
+
+    for (const regex of selectors) {
+      const match = regex.exec(html);
+      if (match && match[1]) {
+        // Remove HTML tags and clean up whitespace
+        const content = match[1]
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        console.log(`Found content for ${sectionAttribute}:`, content);
+        return content;
+      }
     }
 
-    if (match && match[1]) {
-      // Remove HTML tags and clean up whitespace
-      const content = match[1]
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      console.log(`Found content for ${sectionAttribute}:`, content);
-      return content;
+    // If no content found, try to find any text content in the page
+    const textContent = html
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    if (textContent && textContent.length > 0) {
+      console.log(`Using fallback content for ${sectionAttribute}`);
+      return textContent;
     }
+
     console.log(`No content found for ${sectionAttribute}`);
     return null;
   } catch (error) {
