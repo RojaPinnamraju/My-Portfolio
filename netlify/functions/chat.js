@@ -9,20 +9,28 @@ const groq = new Groq({
 // Function to fetch website content
 async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
-  const baseUrl = process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:3000'
-    : 'https://rojapinnamraju-portfolio.netlify.app';
+  // Use the production URL directly since we're in a serverless function
+  const baseUrl = 'https://rojapinnamraju-portfolio.netlify.app';
   console.log('Using base URL:', baseUrl);
   
   try {
     // Fetch About page content
     console.log('Fetching About page...');
-    const aboutResponse = await fetch(`${baseUrl}/about`);
+    const aboutResponse = await fetch(`${baseUrl}/about`, {
+      headers: {
+        'Accept': 'text/html',
+        'User-Agent': 'Mozilla/5.0 (compatible; PortfolioBot/1.0)'
+      }
+    });
+    
     if (!aboutResponse.ok) {
+      console.error('About page fetch failed:', aboutResponse.status, aboutResponse.statusText);
       throw new Error(`Failed to fetch About page: ${aboutResponse.status} ${aboutResponse.statusText}`);
     }
+    
     const aboutHtml = await aboutResponse.text();
     console.log('About page HTML length:', aboutHtml.length);
+    console.log('About page HTML preview:', aboutHtml.substring(0, 200)); // Log first 200 chars for debugging
 
     // Extract content using a more robust method
     const aboutContent = {
@@ -35,23 +43,41 @@ async function fetchWebsiteContent() {
 
     // Fetch Projects page content
     console.log('Fetching Projects page...');
-    const projectsResponse = await fetch(`${baseUrl}/projects`);
+    const projectsResponse = await fetch(`${baseUrl}/projects`, {
+      headers: {
+        'Accept': 'text/html',
+        'User-Agent': 'Mozilla/5.0 (compatible; PortfolioBot/1.0)'
+      }
+    });
+    
     if (!projectsResponse.ok) {
+      console.error('Projects page fetch failed:', projectsResponse.status, projectsResponse.statusText);
       throw new Error(`Failed to fetch Projects page: ${projectsResponse.status} ${projectsResponse.statusText}`);
     }
+    
     const projectsHtml = await projectsResponse.text();
     console.log('Projects page HTML length:', projectsHtml.length);
+    console.log('Projects page HTML preview:', projectsHtml.substring(0, 200)); // Log first 200 chars for debugging
     const projectsContent = extractProjectContent(projectsHtml);
     console.log('Extracted Projects content:', projectsContent);
 
     // Fetch Contact page content
     console.log('Fetching Contact page...');
-    const contactResponse = await fetch(`${baseUrl}/contact`);
+    const contactResponse = await fetch(`${baseUrl}/contact`, {
+      headers: {
+        'Accept': 'text/html',
+        'User-Agent': 'Mozilla/5.0 (compatible; PortfolioBot/1.0)'
+      }
+    });
+    
     if (!contactResponse.ok) {
+      console.error('Contact page fetch failed:', contactResponse.status, contactResponse.statusText);
       throw new Error(`Failed to fetch Contact page: ${contactResponse.status} ${contactResponse.statusText}`);
     }
+    
     const contactHtml = await contactResponse.text();
     console.log('Contact page HTML length:', contactHtml.length);
+    console.log('Contact page HTML preview:', contactHtml.substring(0, 200)); // Log first 200 chars for debugging
     const contactContent = extractContactContent(contactHtml);
     console.log('Extracted Contact content:', contactContent);
 
@@ -74,17 +100,22 @@ async function fetchWebsiteContent() {
 
 // Helper function to extract section content
 function extractSectionContent(html, sectionAttribute) {
+  console.log(`Extracting section with attribute: ${sectionAttribute}`);
   const regex = new RegExp(`<[^>]*${sectionAttribute}[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g');
   const match = regex.exec(html);
   if (match && match[1]) {
     // Remove HTML tags and clean up whitespace
-    return match[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    const content = match[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    console.log(`Found content for ${sectionAttribute}:`, content);
+    return content;
   }
+  console.log(`No content found for ${sectionAttribute}`);
   return null;
 }
 
 // Helper function to extract project content
 function extractProjectContent(html) {
+  console.log('Extracting project content');
   const projects = {};
   const regex = /<[^>]*data-project="([^"]*)"[^>]*>([\s\S]*?)<\/[^>]*>/g;
   let match;
@@ -92,13 +123,16 @@ function extractProjectContent(html) {
   while ((match = regex.exec(html)) !== null) {
     const [, name, content] = match;
     projects[name] = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    console.log(`Found project: ${name}`);
   }
   
+  console.log('Extracted projects:', projects);
   return projects;
 }
 
 // Helper function to extract contact content
 function extractContactContent(html) {
+  console.log('Extracting contact content');
   const contacts = {};
   const regex = /<[^>]*data-contact="([^"]*)"[^>]*>([\s\S]*?)<\/[^>]*>/g;
   let match;
@@ -106,8 +140,10 @@ function extractContactContent(html) {
   while ((match = regex.exec(html)) !== null) {
     const [, type, content] = match;
     contacts[type] = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    console.log(`Found contact: ${type}`);
   }
   
+  console.log('Extracted contacts:', contacts);
   return contacts;
 }
 
