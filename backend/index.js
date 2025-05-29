@@ -1,6 +1,7 @@
 const express = require('express');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -118,6 +119,13 @@ async function fetchWebsiteContent() {
   let browser;
   try {
     console.log('Launching browser...');
+    const executablePath = '/usr/bin/chromium-browser';
+    console.log('Chrome executable path:', executablePath);
+    
+    // Set Puppeteer cache directory
+    process.env.PUPPETEER_CACHE_DIR = '/opt/render/.cache/puppeteer';
+    console.log('Puppeteer cache directory:', process.env.PUPPETEER_CACHE_DIR);
+    
     browser = await puppeteer.launch({
       args: [
         '--no-sandbox',
@@ -134,9 +142,10 @@ async function fetchWebsiteContent() {
         '--single-process',
         '--disable-gpu'
       ],
+      executablePath,
       headless: true,
       ignoreHTTPSErrors: true,
-      executablePath: process.env.CHROME_BIN || null
+      userDataDir: '/opt/render/.cache/puppeteer/user-data'
     });
     console.log('Browser launched successfully');
 
