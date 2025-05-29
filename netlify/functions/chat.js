@@ -52,70 +52,10 @@ async function fetchWebsiteContent() {
       ignoreHTTPSErrors: true,
     });
 
-    const pageLoadTimeout = 5000;
-
-    async function fetchPageContent(url) {
-      const page = await browser.newPage();
-      try {
-        // Increase timeout for initial page load
-        await page.setDefaultNavigationTimeout(10000);
-        
-        // Navigate to the page
-        await page.goto(url, { 
-          waitUntil: 'networkidle0',
-          timeout: 10000 
-        });
-
-        // Wait for React content to be rendered
-        await page.waitForFunction(() => {
-          const root = document.getElementById('root');
-          return root && root.children.length > 0;
-        }, { timeout: 10000 });
-
-        // Use setTimeout instead of waitForTimeout
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        // Try to find content using selectors
-        const content = await page.evaluate(() => {
-          // Try to find content in various ways
-          const selectors = [
-            '[data-section]',
-            '[role]',
-            '[aria-label]',
-            '.section',
-            '#content',
-            'main',
-            'article'
-          ];
-
-          for (const selector of selectors) {
-            const elements = document.querySelectorAll(selector);
-            if (elements.length > 0) {
-              return Array.from(elements)
-                .map(el => el.textContent)
-                .join(' ')
-                .trim();
-            }
-          }
-
-          // Fallback to getting all text content
-          return document.body.textContent.trim();
-        });
-
-        return content;
-      } catch (error) {
-        console.error(`Error fetching ${url}:`, error);
-        return null;
-      } finally {
-        await page.close().catch(console.error);
-      }
-    }
-
-    const [aboutHtml, projectsHtml, contactHtml] = await Promise.all([
-      fetchPageContent(`${baseUrl}/about`),
-      fetchPageContent(`${baseUrl}/projects`),
-      fetchPageContent(`${baseUrl}/contact`)
-    ]);
+    // Fetch pages sequentially instead of in parallel
+    const aboutHtml = await fetchPageContent(`${baseUrl}/about`);
+    const projectsHtml = await fetchPageContent(`${baseUrl}/projects`);
+    const contactHtml = await fetchPageContent(`${baseUrl}/contact`);
 
     const content = {
       about: extractSectionContent(aboutHtml || '', 'about') || 'No information available',
@@ -145,6 +85,76 @@ async function fetchWebsiteContent() {
       } catch (error) {
         console.error('Error closing browser:', error);
       }
+    }
+  }
+}
+
+// Function to fetch website content using Puppeteer
+async function fetchPageContent(url) {
+  const page = await browser.newPage();
+  let content = null;
+  
+  try {
+    // Increase timeout for initial page load
+    await page.setDefaultNavigationTimeout(10000);
+    
+    // Navigate to the page
+    await page.goto(url, { 
+      waitUntil: 'networkidle0',
+      timeout: 10000 
+    });
+
+    // Wait for React content to be rendered
+    await page.waitForFunction(() => {
+      const root = document.getElementById('root');
+      return root && root.children.length > 0;
+    }, { timeout: 10000 });
+
+    // Use setTimeout instead of waitForTimeout
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Try to find content using selectors
+    content = await page.evaluate(() => {
+      // Try to find content in various ways
+      const selectors = [
+        '[data-section]',
+        '[role]',
+        '[aria-label]',
+        '.section',
+        '#content',
+        'main',
+        'article',
+        '.about-section',
+        '.experience-section',
+        '.education-section',
+        '.skills-section',
+        '.project-section',
+        '.contact-section'
+      ];
+
+      for (const selector of selectors) {
+        const elements = document.querySelectorAll(selector);
+        if (elements.length > 0) {
+          return Array.from(elements)
+            .map(el => el.textContent)
+            .join(' ')
+            .trim();
+        }
+      }
+
+      // Fallback to getting all text content
+      return document.body.textContent.trim();
+    });
+
+    return content;
+  } catch (error) {
+    console.error(`Error fetching ${url}:`, error);
+    return null;
+  } finally {
+    try {
+      await page.close();
+    } catch (error) {
+      console.error('Error closing page:', error);
     }
   }
 }
