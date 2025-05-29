@@ -13,6 +13,7 @@ app.use(express.json());
 // Add request logging middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  console.log('Request headers:', req.headers);
   next();
 });
 
@@ -247,4 +248,16 @@ const server = app.listen(port, '0.0.0.0', () => {
   console.log(`- GET /`);
   console.log(`- GET /health`);
   console.log(`- GET /api/content`);
+  
+  // Log all registered routes
+  const routes = [];
+  app._router.stack.forEach(middleware => {
+    if (middleware.route) {
+      routes.push({
+        path: middleware.route.path,
+        methods: Object.keys(middleware.route.methods)
+      });
+    }
+  });
+  console.log('Registered routes:', routes);
 }); 
