@@ -13,8 +13,10 @@ async function fetchWebsiteContent() {
   console.log('Using backend URL:', backendUrl);
   
   try {
+    // Add /api prefix to the URL
     const response = await fetch(`${backendUrl}/api/content`);
     if (!response.ok) {
+      console.error('Backend response not OK:', response.status, response.statusText);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const content = await response.json();
