@@ -9,7 +9,6 @@ const groq = new Groq({
 // Function to fetch website content
 async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
-  // Use the SSR server URL
   const baseUrl = process.env.NODE_ENV === 'development' 
     ? 'http://localhost:3000'
     : 'https://rojapinnamraju-portfolio.netlify.app';
@@ -24,7 +23,14 @@ async function fetchWebsiteContent() {
     }
     const aboutHtml = await aboutResponse.text();
     console.log('About page HTML length:', aboutHtml.length);
-    const aboutContent = extractContent(aboutHtml, 'data-section');
+
+    // Extract content using a more robust method
+    const aboutContent = {
+      about: extractSectionContent(aboutHtml, 'data-section="about"'),
+      experience: extractSectionContent(aboutHtml, 'data-section="experience"'),
+      education: extractSectionContent(aboutHtml, 'data-section="education"'),
+      skills: extractSectionContent(aboutHtml, 'data-section="skills"')
+    };
     console.log('Extracted About content:', aboutContent);
 
     // Fetch Projects page content
@@ -35,7 +41,7 @@ async function fetchWebsiteContent() {
     }
     const projectsHtml = await projectsResponse.text();
     console.log('Projects page HTML length:', projectsHtml.length);
-    const projectsContent = extractContent(projectsHtml, 'data-project');
+    const projectsContent = extractProjectContent(projectsHtml);
     console.log('Extracted Projects content:', projectsContent);
 
     // Fetch Contact page content
@@ -46,7 +52,7 @@ async function fetchWebsiteContent() {
     }
     const contactHtml = await contactResponse.text();
     console.log('Contact page HTML length:', contactHtml.length);
-    const contactContent = extractContent(contactHtml, 'data-contact');
+    const contactContent = extractContactContent(contactHtml);
     console.log('Extracted Contact content:', contactContent);
 
     const content = {
@@ -66,21 +72,43 @@ async function fetchWebsiteContent() {
   }
 }
 
-// Helper function to extract content from HTML
-function extractContent(html, attribute) {
-  console.log(`Extracting content with attribute: ${attribute}`);
-  const sections = {};
-  const regex = new RegExp(`<[^>]*${attribute}="([^"]*)"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g');
+// Helper function to extract section content
+function extractSectionContent(html, sectionAttribute) {
+  const regex = new RegExp(`<[^>]*${sectionAttribute}[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g');
+  const match = regex.exec(html);
+  if (match && match[1]) {
+    // Remove HTML tags and clean up whitespace
+    return match[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  return null;
+}
+
+// Helper function to extract project content
+function extractProjectContent(html) {
+  const projects = {};
+  const regex = /<[^>]*data-project="([^"]*)"[^>]*>([\s\S]*?)<\/[^>]*>/g;
   let match;
   
   while ((match = regex.exec(html)) !== null) {
     const [, name, content] = match;
-    sections[name] = content.trim();
-    console.log(`Found section: ${name}`);
+    projects[name] = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   }
   
-  console.log(`Extracted sections:`, sections);
-  return sections;
+  return projects;
+}
+
+// Helper function to extract contact content
+function extractContactContent(html) {
+  const contacts = {};
+  const regex = /<[^>]*data-contact="([^"]*)"[^>]*>([\s\S]*?)<\/[^>]*>/g;
+  let match;
+  
+  while ((match = regex.exec(html)) !== null) {
+    const [, type, content] = match;
+    contacts[type] = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  
+  return contacts;
 }
 
 // Chat endpoint
