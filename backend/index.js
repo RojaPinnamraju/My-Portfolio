@@ -39,27 +39,47 @@ const cleanText = (text) => {
 
 // Function to extract section content
 const extractSection = ($, sectionName) => {
-  // First try to find the section by data-section attribute
-  const section = $(`section[data-section="${sectionName}"]`);
-  if (section.length > 0) {
-    console.log(`Found section with data-section="${sectionName}"`);
-    return cleanText(section.text());
+  console.log(`Attempting to extract section: ${sectionName}`);
+  
+  // Try multiple selectors for React components
+  const selectors = [
+    `[data-section="${sectionName}"]`,
+    `[data-testid="${sectionName}"]`,
+    `[role="${sectionName}"]`,
+    `[aria-label="${sectionName}"]`,
+    `.${sectionName}`,
+    `#${sectionName}`,
+    `section[data-section="${sectionName}"]`,
+    `div[data-section="${sectionName}"]`
+  ];
+
+  for (const selector of selectors) {
+    const element = $(selector);
+    if (element.length > 0) {
+      console.log(`Found element with selector: ${selector}`);
+      const text = cleanText(element.text());
+      console.log(`Extracted text: ${text}`);
+      return text;
+    }
   }
 
-  // If not found, try to find by heading and following content
-  const heading = $(`h1, h2, h3, h4, h5, h6`).filter((i, el) => {
-    return $(el).text().toLowerCase().includes(sectionName.toLowerCase());
-  });
-
-  if (heading.length > 0) {
-    console.log(`Found section with heading containing "${sectionName}"`);
-    const content = [];
-    let current = heading.next();
-    while (current.length > 0 && !current.is('h1, h2, h3, h4, h5, h6')) {
-      content.push(cleanText(current.text()));
-      current = current.next();
+  // Try to find by heading
+  const headings = $('h1, h2, h3, h4, h5, h6');
+  for (let i = 0; i < headings.length; i++) {
+    const heading = $(headings[i]);
+    const headingText = heading.text().toLowerCase();
+    if (headingText.includes(sectionName.toLowerCase())) {
+      console.log(`Found heading: ${headingText}`);
+      const content = [];
+      let current = heading.next();
+      while (current.length > 0 && !current.is('h1, h2, h3, h4, h5, h6')) {
+        content.push(cleanText(current.text()));
+        current = current.next();
+      }
+      const result = content.join(' ');
+      console.log(`Extracted content from heading: ${result}`);
+      return result;
     }
-    return content.join(' ');
   }
 
   console.log(`No element found for section: ${sectionName}`);
@@ -68,131 +88,193 @@ const extractSection = ($, sectionName) => {
 
 // Function to extract skills
 const extractSkills = ($) => {
+  console.log('Attempting to extract skills');
   const skills = [];
-  $('.skill, [class*="skill"]').each((i, el) => {
-    const name = $(el).find('h3, h4, .skill-name').text();
-    const level = $(el).find('.skill-level, progress').attr('value') || 0;
-    if (name) {
-      skills.push({
-        name: cleanText(name),
-        level: parseInt(level) || 0
-      });
-    }
-  });
+  
+  // Try multiple selectors for skills
+  const skillSelectors = [
+    '.skill',
+    '[class*="skill"]',
+    '[data-section="skills"] .skill',
+    '[data-testid="skills"] .skill',
+    '.Skill',
+    '[class*="Skill"]'
+  ];
+
+  for (const selector of skillSelectors) {
+    $(selector).each((i, el) => {
+      const name = $(el).find('h3, h4, .skill-name, .name').text();
+      const level = $(el).find('.skill-level, progress, [class*="level"]').attr('value') || 0;
+      if (name) {
+        console.log(`Found skill: ${name} with level ${level}`);
+        skills.push({
+          name: cleanText(name),
+          level: parseInt(level) || 0
+        });
+      }
+    });
+  }
+
+  console.log(`Extracted ${skills.length} skills`);
   return skills;
 };
 
 // Function to extract experience
 const extractExperience = ($) => {
+  console.log('Attempting to extract experience');
   const experiences = [];
-  $('.experience, [class*="experience"]').each((i, el) => {
-    const title = $(el).find('h3, h4, .job-title').text();
-    const company = $(el).find('.company, .employer').text();
-    const period = $(el).find('.period, .date').text();
-    const description = [];
-    $(el).find('li, .description-item').each((j, item) => {
-      description.push(cleanText($(item).text()));
-    });
-    
-    if (title) {
-      experiences.push({
-        title: cleanText(title),
-        company: cleanText(company),
-        period: cleanText(period),
-        description: description
+  
+  // Try multiple selectors for experience
+  const expSelectors = [
+    '.experience',
+    '[class*="experience"]',
+    '[data-section="experience"] .experience',
+    '[data-testid="experience"] .experience',
+    '.Experience',
+    '[class*="Experience"]'
+  ];
+
+  for (const selector of expSelectors) {
+    $(selector).each((i, el) => {
+      const title = $(el).find('h3, h4, .job-title, .title').text();
+      const company = $(el).find('.company, .employer, [class*="company"]').text();
+      const period = $(el).find('.period, .date, [class*="period"]').text();
+      const description = [];
+      $(el).find('li, .description-item, [class*="description"]').each((j, item) => {
+        description.push(cleanText($(item).text()));
       });
-    }
-  });
+      
+      if (title) {
+        console.log(`Found experience: ${title} at ${company}`);
+        experiences.push({
+          title: cleanText(title),
+          company: cleanText(company),
+          period: cleanText(period),
+          description: description
+        });
+      }
+    });
+  }
+
+  console.log(`Extracted ${experiences.length} experiences`);
   return experiences;
 };
 
 // Function to extract education
 const extractEducation = ($) => {
+  console.log('Attempting to extract education');
   const education = [];
-  $('.education, [class*="education"]').each((i, el) => {
-    const degree = $(el).find('h3, h4, .degree').text();
-    const school = $(el).find('.school, .institution').text();
-    const period = $(el).find('.period, .date').text();
-    const details = [];
-    $(el).find('li, .detail-item').each((j, item) => {
-      details.push(cleanText($(item).text()));
-    });
-    
-    if (degree) {
-      education.push({
-        degree: cleanText(degree),
-        school: cleanText(school),
-        period: cleanText(period),
-        details: details
+  
+  // Try multiple selectors for education
+  const eduSelectors = [
+    '.education',
+    '[class*="education"]',
+    '[data-section="education"] .education',
+    '[data-testid="education"] .education',
+    '.Education',
+    '[class*="Education"]'
+  ];
+
+  for (const selector of eduSelectors) {
+    $(selector).each((i, el) => {
+      const degree = $(el).find('h3, h4, .degree, .title').text();
+      const school = $(el).find('.school, .institution, [class*="school"]').text();
+      const period = $(el).find('.period, .date, [class*="period"]').text();
+      const details = [];
+      $(el).find('li, .detail-item, [class*="detail"]').each((j, item) => {
+        details.push(cleanText($(item).text()));
       });
-    }
-  });
+      
+      if (degree) {
+        console.log(`Found education: ${degree} at ${school}`);
+        education.push({
+          degree: cleanText(degree),
+          school: cleanText(school),
+          period: cleanText(period),
+          details: details
+        });
+      }
+    });
+  }
+
+  console.log(`Extracted ${education.length} education entries`);
   return education;
 };
 
-// Function to fetch page content with timeout
-async function fetchPageContent(url) {
-  try {
-    console.log(`Fetching content from ${url}...`);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+// Function to fetch page content with timeout and retry
+async function fetchPageContent(url, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`Fetching content from ${url} (attempt ${attempt}/${retries})...`);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1'
+        }
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    });
 
-    clearTimeout(timeout);
+      const html = await response.text();
+      console.log('Content fetched successfully');
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const html = await response.text();
-    console.log('Content fetched successfully');
+      // Load HTML into cheerio
+      const $ = cheerio.load(html);
+      
+      // Extract content based on page type
+      if (url.includes('/about')) {
+        const content = {
+          about: extractSection($, 'about'),
+          experience: extractExperience($),
+          education: extractEducation($),
+          skills: extractSkills($)
+        };
+        console.log('Extracted about page content:', content);
+        return content;
+      } else if (url.includes('/projects')) {
+        const projects = {};
+        $('.project, [class*="project"]').each((i, el) => {
+          const title = $(el).find('.project-title, h3, h4, .title').text();
+          const description = $(el).find('.project-description, .description, [class*="description"]').text();
+          if (title) {
+            projects[cleanText(title)] = cleanText(description);
+          }
+        });
+        console.log('Extracted projects:', projects);
+        return projects;
+      } else if (url.includes('/contact')) {
+        const contact = {};
+        $('.contact-item, [class*="contact"]').each((i, el) => {
+          const type = $(el).find('.contact-type, .type, [class*="type"]').text();
+          const value = $(el).find('.contact-value, .value, [class*="value"]').text();
+          if (type) {
+            contact[cleanText(type)] = cleanText(value);
+          }
+        });
+        console.log('Extracted contact info:', contact);
+        return contact;
+      }
 
-    // Load HTML into cheerio
-    const $ = cheerio.load(html);
-    
-    // Extract content based on page type
-    if (url.includes('/about')) {
-      return {
-        about: extractSection($, 'about'),
-        experience: extractExperience($),
-        education: extractEducation($),
-        skills: extractSkills($)
-      };
-    } else if (url.includes('/projects')) {
-      const projects = {};
-      $('.project, [class*="project"]').each((i, el) => {
-        const title = $(el).find('.project-title, h3, h4').text();
-        const description = $(el).find('.project-description, .description').text();
-        if (title) {
-          projects[cleanText(title)] = cleanText(description);
-        }
-      });
-      return projects;
-    } else if (url.includes('/contact')) {
-      const contact = {};
-      $('.contact-item, [class*="contact"]').each((i, el) => {
-        const type = $(el).find('.contact-type, .type').text();
-        const value = $(el).find('.contact-value, .value').text();
-        if (type) {
-          contact[cleanText(type)] = cleanText(value);
-        }
-      });
-      return contact;
-    }
-
-    return null;
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      console.error(`Timeout while fetching ${url}`);
       return null;
+    } catch (error) {
+      console.error(`Error fetching ${url} (attempt ${attempt}/${retries}):`, error);
+      if (attempt === retries) {
+        throw error;
+      }
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
     }
-    console.error(`Error fetching ${url}:`, error);
-    return null;
   }
 }
 
@@ -226,9 +308,9 @@ async function fetchWebsiteContent() {
 
     const content = {
       about: aboutContent?.about || 'No information available',
-      experience: aboutContent?.experience || 'No information available',
-      education: aboutContent?.education || 'No information available',
-      skills: aboutContent?.skills || 'No information available',
+      experience: aboutContent?.experience || [],
+      education: aboutContent?.education || [],
+      skills: aboutContent?.skills || [],
       projects: projectsContent || {},
       contact: contactContent || {}
     };
@@ -248,9 +330,9 @@ async function fetchWebsiteContent() {
     }
     return {
       about: 'No information available',
-      experience: 'No information available',
-      education: 'No information available',
-      skills: 'No information available',
+      experience: [],
+      education: [],
+      skills: [],
       projects: {},
       contact: {}
     };
