@@ -23,28 +23,36 @@ async function fetchPageContent(browser, url) {
   let content = null;
   
   try {
+    console.log(`Navigating to ${url}...`);
     // Navigate to the page
     await page.goto(url, { 
       waitUntil: 'networkidle0',
       timeout: 30000 
     });
+    console.log('Page loaded successfully');
     
     // Wait for React to render
+    console.log('Waiting for React root element...');
     await page.waitForSelector('#root', { 
       state: 'attached',
       timeout: 30000 
     });
+    console.log('React root element found');
     
     // Additional wait for dynamic content
+    console.log('Waiting for dynamic content...');
     await page.waitForTimeout(2000);
+    console.log('Dynamic content wait complete');
 
     // Extract content using multiple strategies
+    console.log('Extracting content...');
     content = await page.evaluate(() => {
       // Function to clean text content
       const cleanText = (text) => text.replace(/\s+/g, ' ').trim();
 
       // Function to extract section content
       const extractSection = (sectionName) => {
+        console.log(`Extracting section: ${sectionName}`);
         // Try multiple selectors
         const selectors = [
           `[data-section="${sectionName}"]`,
@@ -58,9 +66,11 @@ async function fetchPageContent(browser, url) {
         for (const selector of selectors) {
           const element = document.querySelector(selector);
           if (element) {
+            console.log(`Found element with selector: ${selector}`);
             return cleanText(element.textContent);
           }
         }
+        console.log(`No element found for section: ${sectionName}`);
         return null;
       };
 
@@ -74,12 +84,14 @@ async function fetchPageContent(browser, url) {
 
       // If no sections found, try to find any text content
       if (!Object.values(sections).some(Boolean)) {
+        console.log('No sections found, extracting all text content');
         return cleanText(document.body.textContent);
       }
 
       return sections;
     });
 
+    console.log('Content extracted:', content);
     return content;
   } catch (error) {
     console.error(`Error fetching ${url}:`, error);
@@ -132,15 +144,19 @@ async function fetchWebsiteContent() {
       ],
       headless: 'new'
     });
+    console.log('Browser launched successfully');
 
     // Fetch pages sequentially
+    console.log('Fetching about page content...');
     const aboutContent = await fetchPageContent(browser, `${baseUrl}/about`);
-    const projectsContent = await fetchPageContent(browser, `${baseUrl}/projects`);
-    const contactContent = await fetchPageContent(browser, `${baseUrl}/contact`);
-
-    // Log raw content for debugging
     console.log('About page content:', aboutContent);
+
+    console.log('Fetching projects page content...');
+    const projectsContent = await fetchPageContent(browser, `${baseUrl}/projects`);
     console.log('Projects page content:', projectsContent);
+
+    console.log('Fetching contact page content...');
+    const contactContent = await fetchPageContent(browser, `${baseUrl}/contact`);
     console.log('Contact page content:', contactContent);
 
     const content = {
