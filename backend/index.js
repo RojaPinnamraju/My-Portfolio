@@ -45,7 +45,7 @@ const extractSection = ($, sectionName) => {
   const section = $(`section[data-section="${sectionName}"]`);
   if (section.length > 0) {
     console.log(`Found section with data-section="${sectionName}"`);
-    const text = section.find('p, Text').text();
+    const text = section.find('p, Text, div').text();
     console.log(`Extracted text: ${text}`);
     return cleanText(text);
   }
@@ -68,6 +68,15 @@ const extractSection = ($, sectionName) => {
     return result;
   }
 
+  // Try to find by class name
+  const classSection = $(`[class*="${sectionName.toLowerCase()}"]`);
+  if (classSection.length > 0) {
+    console.log(`Found section with class containing "${sectionName}"`);
+    const text = classSection.find('p, Text, div').text();
+    console.log(`Extracted text from class: ${text}`);
+    return cleanText(text);
+  }
+
   console.log(`No element found for section: ${sectionName}`);
   return null;
 };
@@ -79,7 +88,7 @@ const extractSkills = ($) => {
   
   // Look for skill components
   $('.skill, [class*="skill"], [class*="Skill"]').each((i, el) => {
-    const name = $(el).find('h3, h4, .skill-name, .name, Text').text();
+    const name = $(el).find('h3, h4, .skill-name, .name, Text, div').text();
     const level = $(el).find('progress, Progress').attr('value') || 0;
     if (name) {
       console.log(`Found skill: ${name} with level ${level}`);
@@ -95,7 +104,7 @@ const extractSkills = ($) => {
     const skillsSection = $('section[data-section="skills"]');
     if (skillsSection.length > 0) {
       skillsSection.find('.skill, [class*="skill"], [class*="Skill"]').each((i, el) => {
-        const name = $(el).find('h3, h4, .skill-name, .name, Text').text();
+        const name = $(el).find('h3, h4, .skill-name, .name, Text, div').text();
         const level = $(el).find('progress, Progress').attr('value') || 0;
         if (name) {
           console.log(`Found skill in section: ${name} with level ${level}`);
@@ -119,11 +128,11 @@ const extractExperience = ($) => {
   
   // Look for experience components
   $('.experience, [class*="experience"], [class*="Experience"]').each((i, el) => {
-    const title = $(el).find('h3, h4, .job-title, .title, Heading').text();
+    const title = $(el).find('h3, h4, .job-title, .title, Heading, div').text();
     const company = $(el).find('.company, .employer, [class*="company"]').text();
     const period = $(el).find('.period, .date, [class*="period"]').text();
     const description = [];
-    $(el).find('li, .description-item, [class*="description"], Text').each((j, item) => {
+    $(el).find('li, .description-item, [class*="description"], Text, div').each((j, item) => {
       const text = $(item).text().trim();
       if (text && !text.startsWith('•')) {
         description.push(cleanText(text));
@@ -146,11 +155,11 @@ const extractExperience = ($) => {
     const expSection = $('section[data-section="experience"]');
     if (expSection.length > 0) {
       expSection.find('.experience, [class*="experience"], [class*="Experience"]').each((i, el) => {
-        const title = $(el).find('h3, h4, .job-title, .title, Heading').text();
+        const title = $(el).find('h3, h4, .job-title, .title, Heading, div').text();
         const company = $(el).find('.company, .employer, [class*="company"]').text();
         const period = $(el).find('.period, .date, [class*="period"]').text();
         const description = [];
-        $(el).find('li, .description-item, [class*="description"], Text').each((j, item) => {
+        $(el).find('li, .description-item, [class*="description"], Text, div').each((j, item) => {
           const text = $(item).text().trim();
           if (text && !text.startsWith('•')) {
             description.push(cleanText(text));
@@ -264,7 +273,45 @@ async function fetchPageContent(url, retries = 3) {
 
       const html = await response.text();
       console.log('Content fetched successfully');
-      return html;
+
+      // Load HTML into cheerio
+      const $ = cheerio.load(html);
+      
+      // Extract content based on page type
+      if (url.includes('/about')) {
+        const content = {
+          about: extractSection($, 'about'),
+          experience: extractExperience($),
+          education: extractEducation($),
+          skills: extractSkills($)
+        };
+        console.log('Extracted about page content:', content);
+        return content;
+      } else if (url.includes('/projects')) {
+        const projects = {};
+        $('.project, [class*="project"]').each((i, el) => {
+          const title = $(el).find('.project-title, h3, h4, .title').text();
+          const description = $(el).find('.project-description, .description, [class*="description"]').text();
+          if (title) {
+            projects[cleanText(title)] = cleanText(description);
+          }
+        });
+        console.log('Extracted projects:', projects);
+        return projects;
+      } else if (url.includes('/contact')) {
+        const contact = {};
+        $('.contact-item, [class*="contact"]').each((i, el) => {
+          const type = $(el).find('.contact-type, .type, [class*="type"]').text();
+          const value = $(el).find('.contact-value, .value, [class*="value"]').text();
+          if (type) {
+            contact[cleanText(type)] = cleanText(value);
+          }
+        });
+        console.log('Extracted contact info:', contact);
+        return contact;
+      }
+
+      return null;
     } catch (error) {
       console.error(`Error fetching ${url} (attempt ${attempt}/${retries}):`, error);
       if (attempt === retries) {
