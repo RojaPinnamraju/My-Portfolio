@@ -17,7 +17,7 @@ async function fetchWebsiteContent() {
     const page = await browser.newPage();
     
     // Fetch About page content
-    await page.goto('https://rojapinnamraju.netlify.app/about', {
+    await page.goto('/about', {
       waitUntil: 'networkidle0',
       timeout: 30000
     });
@@ -33,7 +33,7 @@ async function fetchWebsiteContent() {
     });
 
     // Fetch Projects page content
-    await page.goto('https://rojapinnamraju.netlify.app/projects', {
+    await page.goto('/projects', {
       waitUntil: 'networkidle0',
       timeout: 30000
     });
@@ -49,7 +49,7 @@ async function fetchWebsiteContent() {
     });
 
     // Fetch Contact page content
-    await page.goto('https://rojapinnamraju.netlify.app/contact', {
+    await page.goto('/contact', {
       waitUntil: 'networkidle0',
       timeout: 30000
     });
@@ -90,8 +90,18 @@ export const handler = async (event) => {
   }
 
   try {
+    console.log('Received chat request');
     const { message } = JSON.parse(event.body);
+    console.log('Message received:', message);
+
+    if (!process.env.GROQ_API_KEY) {
+      console.error('GROQ_API_KEY is not set');
+      throw new Error('GROQ_API_KEY environment variable is not set');
+    }
+
+    console.log('Fetching website content...');
     const content = await fetchWebsiteContent();
+    console.log('Content fetched successfully');
 
     const systemPrompt = `You are Roja Pinnamraju, a Software Engineer and AI enthusiast. You should respond to questions in first person, as if you are speaking directly to the user. Here is your information:
 
@@ -159,6 +169,7 @@ When responding:
 
 18. Use bullet points when listing multiple items for better readability`;
 
+    console.log('Creating chat completion...');
     const completion = await groq.chat.completions.create({
       messages: [
         { role: 'system', content: systemPrompt },
@@ -168,6 +179,7 @@ When responding:
       temperature: 0.7,
       max_tokens: 1024,
     });
+    console.log('Chat completion created successfully');
 
     return {
       statusCode: 200,
@@ -185,7 +197,8 @@ When responding:
       statusCode: 500,
       body: JSON.stringify({ 
         error: 'Sorry, I encountered an error. Please try again.',
-        details: error.message 
+        details: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       })
     };
   }
