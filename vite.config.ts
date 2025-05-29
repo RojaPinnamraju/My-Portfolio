@@ -13,26 +13,19 @@ export default defineConfig({
     },
   },
   build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: true,
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
-        server: path.resolve(__dirname, 'src/server.tsx'),
       },
       output: {
-        format: 'esm',
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          chakra: ['@chakra-ui/react', '@chakra-ui/icons', '@emotion/react', '@emotion/styled'],
+        },
       },
-      external: [
-        'react-helmet-async',
-        'react',
-        'react-dom',
-        'react-router-dom',
-        '@chakra-ui/react',
-        '@chakra-ui/icons',
-        '@emotion/react',
-        '@emotion/styled',
-        'framer-motion',
-        'react-icons'
-      ],
     },
   },
   server: {
