@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Netlify functions for portfolio",
   "dependencies": {
-    "groq-sdk": "^0.3.0",
-    "puppeteer": "^21.0.0"
+    "groq-sdk": "^0.3.0"
   }
 } 
