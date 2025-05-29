@@ -21,7 +21,9 @@ async function fetchWebsiteContent() {
       throw new Error(`Failed to fetch About page: ${aboutResponse.status} ${aboutResponse.statusText}`);
     }
     const aboutHtml = await aboutResponse.text();
+    console.log('About page HTML length:', aboutHtml.length);
     const aboutContent = extractContent(aboutHtml, 'data-section');
+    console.log('Extracted About content:', aboutContent);
 
     // Fetch Projects page content
     console.log('Fetching Projects page...');
@@ -30,7 +32,9 @@ async function fetchWebsiteContent() {
       throw new Error(`Failed to fetch Projects page: ${projectsResponse.status} ${projectsResponse.statusText}`);
     }
     const projectsHtml = await projectsResponse.text();
+    console.log('Projects page HTML length:', projectsHtml.length);
     const projectsContent = extractContent(projectsHtml, 'data-project');
+    console.log('Extracted Projects content:', projectsContent);
 
     // Fetch Contact page content
     console.log('Fetching Contact page...');
@@ -39,7 +43,9 @@ async function fetchWebsiteContent() {
       throw new Error(`Failed to fetch Contact page: ${contactResponse.status} ${contactResponse.statusText}`);
     }
     const contactHtml = await contactResponse.text();
+    console.log('Contact page HTML length:', contactHtml.length);
     const contactContent = extractContent(contactHtml, 'data-contact');
+    console.log('Extracted Contact content:', contactContent);
 
     const content = {
       ...aboutContent,
@@ -47,7 +53,7 @@ async function fetchWebsiteContent() {
       contact: contactContent
     };
 
-    console.log('Content extracted successfully');
+    console.log('Final combined content:', content);
     return content;
   } catch (error) {
     console.error('Error fetching content:', error);
@@ -57,6 +63,7 @@ async function fetchWebsiteContent() {
 
 // Helper function to extract content from HTML
 function extractContent(html, attribute) {
+  console.log(`Extracting content with attribute: ${attribute}`);
   const sections = {};
   const regex = new RegExp(`<[^>]*${attribute}="([^"]*)"[^>]*>([\\s\\S]*?)<\\/[^>]*>`, 'g');
   let match;
@@ -64,8 +71,10 @@ function extractContent(html, attribute) {
   while ((match = regex.exec(html)) !== null) {
     const [, name, content] = match;
     sections[name] = content.trim();
+    console.log(`Found section: ${name}`);
   }
   
+  console.log(`Extracted sections:`, sections);
   return sections;
 }
 
