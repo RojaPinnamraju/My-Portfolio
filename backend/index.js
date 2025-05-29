@@ -41,45 +41,31 @@ const cleanText = (text) => {
 const extractSection = ($, sectionName) => {
   console.log(`Attempting to extract section: ${sectionName}`);
   
-  // Try multiple selectors for React components
-  const selectors = [
-    `[data-section="${sectionName}"]`,
-    `[data-testid="${sectionName}"]`,
-    `[role="${sectionName}"]`,
-    `[aria-label="${sectionName}"]`,
-    `.${sectionName}`,
-    `#${sectionName}`,
-    `section[data-section="${sectionName}"]`,
-    `div[data-section="${sectionName}"]`
-  ];
-
-  for (const selector of selectors) {
-    const element = $(selector);
-    if (element.length > 0) {
-      console.log(`Found element with selector: ${selector}`);
-      const text = cleanText(element.text());
-      console.log(`Extracted text: ${text}`);
-      return text;
-    }
+  // Try to find the section by data-section attribute
+  const section = $(`section[data-section="${sectionName}"]`);
+  if (section.length > 0) {
+    console.log(`Found section with data-section="${sectionName}"`);
+    const text = section.find('p, Text').text();
+    console.log(`Extracted text: ${text}`);
+    return cleanText(text);
   }
 
-  // Try to find by heading
-  const headings = $('h1, h2, h3, h4, h5, h6');
-  for (let i = 0; i < headings.length; i++) {
-    const heading = $(headings[i]);
-    const headingText = heading.text().toLowerCase();
-    if (headingText.includes(sectionName.toLowerCase())) {
-      console.log(`Found heading: ${headingText}`);
-      const content = [];
-      let current = heading.next();
-      while (current.length > 0 && !current.is('h1, h2, h3, h4, h5, h6')) {
-        content.push(cleanText(current.text()));
-        current = current.next();
-      }
-      const result = content.join(' ');
-      console.log(`Extracted content from heading: ${result}`);
-      return result;
+  // Try to find by heading and following content
+  const heading = $(`h1, h2, h3, h4, h5, h6`).filter((i, el) => {
+    return $(el).text().toLowerCase().includes(sectionName.toLowerCase());
+  });
+
+  if (heading.length > 0) {
+    console.log(`Found heading: ${heading.text()}`);
+    const content = [];
+    let current = heading.next();
+    while (current.length > 0 && !current.is('h1, h2, h3, h4, h5, h6')) {
+      content.push(cleanText(current.text()));
+      current = current.next();
     }
+    const result = content.join(' ');
+    console.log(`Extracted content from heading: ${result}`);
+    return result;
   }
 
   console.log(`No element found for section: ${sectionName}`);
@@ -91,28 +77,35 @@ const extractSkills = ($) => {
   console.log('Attempting to extract skills');
   const skills = [];
   
-  // Try multiple selectors for skills
-  const skillSelectors = [
-    '.skill',
-    '[class*="skill"]',
-    '[data-section="skills"] .skill',
-    '[data-testid="skills"] .skill',
-    '.Skill',
-    '[class*="Skill"]'
-  ];
+  // Look for skill components
+  $('.skill, [class*="skill"], [class*="Skill"]').each((i, el) => {
+    const name = $(el).find('h3, h4, .skill-name, .name, Text').text();
+    const level = $(el).find('progress, Progress').attr('value') || 0;
+    if (name) {
+      console.log(`Found skill: ${name} with level ${level}`);
+      skills.push({
+        name: cleanText(name),
+        level: parseInt(level) || 0
+      });
+    }
+  });
 
-  for (const selector of skillSelectors) {
-    $(selector).each((i, el) => {
-      const name = $(el).find('h3, h4, .skill-name, .name').text();
-      const level = $(el).find('.skill-level, progress, [class*="level"]').attr('value') || 0;
-      if (name) {
-        console.log(`Found skill: ${name} with level ${level}`);
-        skills.push({
-          name: cleanText(name),
-          level: parseInt(level) || 0
-        });
-      }
-    });
+  // If no skills found, try to find them in the skills section
+  if (skills.length === 0) {
+    const skillsSection = $('section[data-section="skills"]');
+    if (skillsSection.length > 0) {
+      skillsSection.find('.skill, [class*="skill"], [class*="Skill"]').each((i, el) => {
+        const name = $(el).find('h3, h4, .skill-name, .name, Text').text();
+        const level = $(el).find('progress, Progress').attr('value') || 0;
+        if (name) {
+          console.log(`Found skill in section: ${name} with level ${level}`);
+          skills.push({
+            name: cleanText(name),
+            level: parseInt(level) || 0
+          });
+        }
+      });
+    }
   }
 
   console.log(`Extracted ${skills.length} skills`);
@@ -124,36 +117,57 @@ const extractExperience = ($) => {
   console.log('Attempting to extract experience');
   const experiences = [];
   
-  // Try multiple selectors for experience
-  const expSelectors = [
-    '.experience',
-    '[class*="experience"]',
-    '[data-section="experience"] .experience',
-    '[data-testid="experience"] .experience',
-    '.Experience',
-    '[class*="Experience"]'
-  ];
-
-  for (const selector of expSelectors) {
-    $(selector).each((i, el) => {
-      const title = $(el).find('h3, h4, .job-title, .title').text();
-      const company = $(el).find('.company, .employer, [class*="company"]').text();
-      const period = $(el).find('.period, .date, [class*="period"]').text();
-      const description = [];
-      $(el).find('li, .description-item, [class*="description"]').each((j, item) => {
-        description.push(cleanText($(item).text()));
-      });
-      
-      if (title) {
-        console.log(`Found experience: ${title} at ${company}`);
-        experiences.push({
-          title: cleanText(title),
-          company: cleanText(company),
-          period: cleanText(period),
-          description: description
-        });
+  // Look for experience components
+  $('.experience, [class*="experience"], [class*="Experience"]').each((i, el) => {
+    const title = $(el).find('h3, h4, .job-title, .title, Heading').text();
+    const company = $(el).find('.company, .employer, [class*="company"]').text();
+    const period = $(el).find('.period, .date, [class*="period"]').text();
+    const description = [];
+    $(el).find('li, .description-item, [class*="description"], Text').each((j, item) => {
+      const text = $(item).text().trim();
+      if (text && !text.startsWith('•')) {
+        description.push(cleanText(text));
       }
     });
+    
+    if (title) {
+      console.log(`Found experience: ${title} at ${company}`);
+      experiences.push({
+        title: cleanText(title),
+        company: cleanText(company),
+        period: cleanText(period),
+        description: description
+      });
+    }
+  });
+
+  // If no experiences found, try to find them in the experience section
+  if (experiences.length === 0) {
+    const expSection = $('section[data-section="experience"]');
+    if (expSection.length > 0) {
+      expSection.find('.experience, [class*="experience"], [class*="Experience"]').each((i, el) => {
+        const title = $(el).find('h3, h4, .job-title, .title, Heading').text();
+        const company = $(el).find('.company, .employer, [class*="company"]').text();
+        const period = $(el).find('.period, .date, [class*="period"]').text();
+        const description = [];
+        $(el).find('li, .description-item, [class*="description"], Text').each((j, item) => {
+          const text = $(item).text().trim();
+          if (text && !text.startsWith('•')) {
+            description.push(cleanText(text));
+          }
+        });
+        
+        if (title) {
+          console.log(`Found experience in section: ${title} at ${company}`);
+          experiences.push({
+            title: cleanText(title),
+            company: cleanText(company),
+            period: cleanText(period),
+            description: description
+          });
+        }
+      });
+    }
   }
 
   console.log(`Extracted ${experiences.length} experiences`);
@@ -165,36 +179,57 @@ const extractEducation = ($) => {
   console.log('Attempting to extract education');
   const education = [];
   
-  // Try multiple selectors for education
-  const eduSelectors = [
-    '.education',
-    '[class*="education"]',
-    '[data-section="education"] .education',
-    '[data-testid="education"] .education',
-    '.Education',
-    '[class*="Education"]'
-  ];
-
-  for (const selector of eduSelectors) {
-    $(selector).each((i, el) => {
-      const degree = $(el).find('h3, h4, .degree, .title').text();
-      const school = $(el).find('.school, .institution, [class*="school"]').text();
-      const period = $(el).find('.period, .date, [class*="period"]').text();
-      const details = [];
-      $(el).find('li, .detail-item, [class*="detail"]').each((j, item) => {
-        details.push(cleanText($(item).text()));
-      });
-      
-      if (degree) {
-        console.log(`Found education: ${degree} at ${school}`);
-        education.push({
-          degree: cleanText(degree),
-          school: cleanText(school),
-          period: cleanText(period),
-          details: details
-        });
+  // Look for education components
+  $('.education, [class*="education"], [class*="Education"]').each((i, el) => {
+    const degree = $(el).find('h3, h4, .degree, .title, Heading').text();
+    const school = $(el).find('.school, .institution, [class*="school"]').text();
+    const period = $(el).find('.period, .date, [class*="period"]').text();
+    const details = [];
+    $(el).find('li, .detail-item, [class*="detail"], Text').each((j, item) => {
+      const text = $(item).text().trim();
+      if (text && !text.startsWith('•')) {
+        details.push(cleanText(text));
       }
     });
+    
+    if (degree) {
+      console.log(`Found education: ${degree} at ${school}`);
+      education.push({
+        degree: cleanText(degree),
+        school: cleanText(school),
+        period: cleanText(period),
+        details: details
+      });
+    }
+  });
+
+  // If no education found, try to find it in the education section
+  if (education.length === 0) {
+    const eduSection = $('section[data-section="education"]');
+    if (eduSection.length > 0) {
+      eduSection.find('.education, [class*="education"], [class*="Education"]').each((i, el) => {
+        const degree = $(el).find('h3, h4, .degree, .title, Heading').text();
+        const school = $(el).find('.school, .institution, [class*="school"]').text();
+        const period = $(el).find('.period, .date, [class*="period"]').text();
+        const details = [];
+        $(el).find('li, .detail-item, [class*="detail"], Text').each((j, item) => {
+          const text = $(item).text().trim();
+          if (text && !text.startsWith('•')) {
+            details.push(cleanText(text));
+          }
+        });
+        
+        if (degree) {
+          console.log(`Found education in section: ${degree} at ${school}`);
+          education.push({
+            degree: cleanText(degree),
+            school: cleanText(school),
+            period: cleanText(period),
+            details: details
+          });
+        }
+      });
+    }
   }
 
   console.log(`Extracted ${education.length} education entries`);
