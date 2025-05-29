@@ -115,7 +115,7 @@ async function fetchWebsiteContent() {
   try {
     console.log('Launching browser...');
     browser = await puppeteer.launch({
-      executablePath: process.env.CHROME_PATH || '/opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux/chrome',
+      executablePath: '/usr/bin/google-chrome',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',

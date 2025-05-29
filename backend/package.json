@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "build": "npm install && npx puppeteer browsers install chrome",
+    "build": "npm install && PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm install puppeteer-core@21.0.0",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -15,7 +15,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
-    "puppeteer": "^21.0.0"
+    "puppeteer-core": "^21.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
