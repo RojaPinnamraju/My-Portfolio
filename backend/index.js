@@ -1,5 +1,6 @@
 const express = require('express');
 const puppeteer = require('puppeteer-core');
+const chromium = require('chrome-aws-lambda');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -114,36 +115,15 @@ async function fetchWebsiteContent() {
   let browser;
   try {
     console.log('Launching browser...');
+    const executablePath = await chromium.executablePath;
+    console.log('Chrome executable path:', executablePath);
+    
     browser = await puppeteer.launch({
-      executablePath: '/usr/bin/google-chrome',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-extensions',
-        '--disable-component-extensions-with-background-pages',
-        '--disable-default-apps',
-        '--mute-audio',
-        '--no-default-browser-check',
-        '--no-first-run',
-        '--disable-background-networking',
-        '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-breakpad',
-        '--disable-client-side-phishing-detection',
-        '--disable-hang-monitor',
-        '--disable-ipc-flooding-protection',
-        '--disable-popup-blocking',
-        '--disable-prompt-on-repost',
-        '--disable-renderer-backgrounding',
-        '--disable-sync',
-        '--force-color-profile=srgb',
-        '--metrics-recording-only',
-        '--no-experiments',
-        '--safebrowsing-disable-auto-update'
-      ],
-      headless: 'new'
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: executablePath || '/usr/bin/google-chrome',
+      headless: chromium.headless,
+      ignoreHTTPSErrors: true,
     });
     console.log('Browser launched successfully');
 
@@ -277,4 +257,4 @@ const server = app.listen(port, '0.0.0.0', () => {
     }
   });
   console.log('Registered routes:', routes);
-}); 
+});
