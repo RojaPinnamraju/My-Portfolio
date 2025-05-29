@@ -12,8 +12,16 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 let contentCache = null;
 let lastFetchTime = null;
 
+// CORS configuration
+const corsOptions = {
+  origin: ['https://rojapinnamraju-portfolio.netlify.app', 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Add request logging middleware
@@ -244,7 +252,7 @@ app.use((req, res) => {
 });
 
 // Start server
-const server = app.listen(port, '0.0.0.0', () => {
+const server = app.listen(port, () => {
   console.log(`Server running on port ${port}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Available endpoints:`);
@@ -263,4 +271,27 @@ const server = app.listen(port, '0.0.0.0', () => {
     }
   });
   console.log('Registered routes:', routes);
+});
+
+// Handle server shutdown gracefully
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  server.close(() => {
+    process.exit(1);
+  });
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  server.close(() => {
+    process.exit(1);
+  });
 });
