@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const cheerio = require('cheerio');
 require('dotenv').config();
 
 const app = express();
@@ -17,6 +18,34 @@ app.use((req, res, next) => {
   next();
 });
 
+// Function to clean text content
+const cleanText = (text) => {
+  if (!text) return null;
+  return text.replace(/\s+/g, ' ').trim();
+};
+
+// Function to extract section content
+const extractSection = ($, sectionName) => {
+  const selectors = [
+    `[data-section="${sectionName}"]`,
+    `[data-testid="${sectionName}"]`,
+    `[role="${sectionName}"]`,
+    `[aria-label="${sectionName}"]`,
+    `.${sectionName}`,
+    `#${sectionName}`
+  ];
+
+  for (const selector of selectors) {
+    const element = $(selector);
+    if (element.length > 0) {
+      console.log(`Found element with selector: ${selector}`);
+      return cleanText(element.text());
+    }
+  }
+  console.log(`No element found for section: ${sectionName}`);
+  return null;
+};
+
 // Function to fetch page content
 async function fetchPageContent(url) {
   try {
@@ -28,35 +57,40 @@ async function fetchPageContent(url) {
     const html = await response.text();
     console.log('Content fetched successfully');
 
-    // Extract content using regex patterns
-    const extractSection = (html, sectionName) => {
-      const patterns = [
-        new RegExp(`<[^>]*data-section="${sectionName}"[^>]*>(.*?)</[^>]*>`, 's'),
-        new RegExp(`<[^>]*data-testid="${sectionName}"[^>]*>(.*?)</[^>]*>`, 's'),
-        new RegExp(`<[^>]*role="${sectionName}"[^>]*>(.*?)</[^>]*>`, 's'),
-        new RegExp(`<[^>]*aria-label="${sectionName}"[^>]*>(.*?)</[^>]*>`, 's'),
-        new RegExp(`<[^>]*class="${sectionName}"[^>]*>(.*?)</[^>]*>`, 's'),
-        new RegExp(`<[^>]*id="${sectionName}"[^>]*>(.*?)</[^>]*>`, 's')
-      ];
-
-      for (const pattern of patterns) {
-        const match = html.match(pattern);
-        if (match && match[1]) {
-          return match[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    // Load HTML into cheerio
+    const $ = cheerio.load(html);
+    
+    // Extract content based on page type
+    if (url.includes('/about')) {
+      return {
+        about: extractSection($, 'about'),
+        experience: extractSection($, 'experience'),
+        education: extractSection($, 'education'),
+        skills: extractSection($, 'skills')
+      };
+    } else if (url.includes('/projects')) {
+      const projects = {};
+      $('[data-section="projects"] .project, [data-testid="projects"] .project').each((i, el) => {
+        const title = $(el).find('.project-title').text();
+        const description = $(el).find('.project-description').text();
+        if (title) {
+          projects[cleanText(title)] = cleanText(description);
         }
-      }
-      return null;
-    };
+      });
+      return projects;
+    } else if (url.includes('/contact')) {
+      const contact = {};
+      $('[data-section="contact"] .contact-item, [data-testid="contact"] .contact-item').each((i, el) => {
+        const type = $(el).find('.contact-type').text();
+        const value = $(el).find('.contact-value').text();
+        if (type) {
+          contact[cleanText(type)] = cleanText(value);
+        }
+      });
+      return contact;
+    }
 
-    const content = {
-      about: extractSection(html, 'about'),
-      experience: extractSection(html, 'experience'),
-      education: extractSection(html, 'education'),
-      skills: extractSection(html, 'skills')
-    };
-
-    console.log('Extracted content:', content);
-    return content;
+    return null;
   } catch (error) {
     console.error(`Error fetching ${url}:`, error);
     return null;
