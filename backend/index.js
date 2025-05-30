@@ -108,7 +108,7 @@ async function fetchPageContent(url, retries = 3) {
         '--disable-site-isolation-trials'
       ],
       headless: 'new',
-      timeout: 15000 // Increased timeout
+      timeout: 30000 // Increased timeout for better reliability
     };
 
     console.log('Launching browser with options:', JSON.stringify(launchOptions, null, 2));
@@ -116,8 +116,8 @@ async function fetchPageContent(url, retries = 3) {
     const page = await browser.newPage();
 
     // Set longer timeouts for better content loading
-    page.setDefaultNavigationTimeout(15000);
-    page.setDefaultTimeout(15000);
+    page.setDefaultNavigationTimeout(30000);
+    page.setDefaultTimeout(30000);
 
     // Enable request interception for debugging
     await page.setRequestInterception(true);
@@ -139,29 +139,29 @@ async function fetchPageContent(url, retries = 3) {
     console.log('Navigating to page...');
     await page.goto(url, { 
       waitUntil: ['domcontentloaded', 'networkidle0'],
-      timeout: 15000
+      timeout: 30000
     });
 
-    // Wait for React to hydrate with a more specific check
+    // Wait for React to hydrate with a more robust check
     console.log('Waiting for React to hydrate...');
     try {
-      await page.waitForFunction(() => {
-        const root = document.querySelector('#root');
-        const skills = document.querySelectorAll('.skill');
-        const experiences = document.querySelectorAll('.experience');
-        const projects = document.querySelectorAll('.project');
-        return root && 
-               root.textContent.trim().length > 0 && 
-               (skills.length > 0 || experiences.length > 0 || projects.length > 0);
-      }, { timeout: 15000 });
+      // First wait for the root element
+      await page.waitForSelector('#root', { timeout: 10000 });
+      
+      // Then wait for specific sections to be rendered
+      await Promise.all([
+        page.waitForSelector('.skill', { timeout: 10000 }).catch(() => console.log('Skills section not found')),
+        page.waitForSelector('.experience', { timeout: 10000 }).catch(() => console.log('Experience section not found')),
+        page.waitForSelector('.project', { timeout: 10000 }).catch(() => console.log('Projects section not found')),
+        page.waitForSelector('.education', { timeout: 10000 }).catch(() => console.log('Education section not found'))
+      ]);
+
+      // Additional wait for dynamic content
+      await page.waitForTimeout(2000);
     } catch (error) {
-      console.log('Hydration check timed out, proceeding with available content');
+      console.log('Hydration check timed out, proceeding with available content:', error.message);
     }
 
-    // Wait for any dynamic content
-    console.log('Waiting for dynamic content...');
-    await page.waitForTimeout(2000);
-    
     // Get the page content
     const html = await page.content();
     console.log('Content fetched successfully, length:', html.length);
@@ -345,6 +345,15 @@ async function fetchWebsiteContent() {
         }
       });
       console.log('Contact info extracted:', Object.keys(contact).length);
+
+      // Log the extracted content for debugging
+      console.log('Extracted content:', {
+        skills: skills.length,
+        experiences: experiences.length,
+        education: education.length,
+        projects: Object.keys(projects).length,
+        expertise: expertise.length
+      });
 
       const content = {
         about: aboutText,
