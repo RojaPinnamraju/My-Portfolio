@@ -392,28 +392,53 @@ async function fetchWebsiteContent() {
       const skills = [];
       const skillSet = new Set();
       
+      // Debug: Log all potential skill elements
+      console.log('\nSearching for skills...');
+      
       // First try to find skills in the skills section
-      $('div[class*="skills"], div[class*="chakra-stack"]').each((i, section) => {
+      $('div[class*="skills"], div[class*="chakra-stack"], div[class*="chakra-container"]').each((i, section) => {
         const $section = $(section);
+        console.log(`\nAnalyzing section ${i + 1}:`);
+        console.log('Section HTML:', $section.html());
         
         // Look for progress bars and their labels
-        $section.find('div[class*="chakra-progress"], div[class*="progress"]').each((j, progress) => {
+        $section.find('div[class*="chakra-progress"], div[class*="progress"], div[role="progressbar"]').each((j, progress) => {
           const $progress = $(progress);
-          const $parent = $progress.parent();
+          console.log(`\nFound progress element ${j + 1}:`);
+          console.log('Progress HTML:', $progress.html());
           
-          // Try different ways to find the skill name
-          let name = $parent.find('p[class*="chakra-text"], div[class*="chakra-text"], span[class*="chakra-text"]').text().trim();
+          // Try to find the skill name in various places
+          let name = '';
+          
+          // 1. Look in the parent element
+          const $parent = $progress.parent();
+          name = $parent.find('p[class*="chakra-text"], div[class*="chakra-text"], span[class*="chakra-text"]').text().trim();
+          console.log('Name from parent:', name);
+          
+          // 2. Look in the previous sibling
           if (!name) {
-            // Try finding the name in nearby elements
             name = $parent.prev().find('p[class*="chakra-text"], div[class*="chakra-text"], span[class*="chakra-text"]').text().trim();
+            console.log('Name from previous sibling:', name);
           }
+          
+          // 3. Look in the parent's parent
           if (!name) {
-            // Try finding the name in the parent's parent
             name = $parent.parent().find('p[class*="chakra-text"], div[class*="chakra-text"], span[class*="chakra-text"]').text().trim();
+            console.log('Name from parent\'s parent:', name);
+          }
+          
+          // 4. Look for any text near the progress bar
+          if (!name) {
+            const nearbyText = $progress.siblings().text().trim();
+            if (nearbyText && nearbyText.length < 50) { // Avoid long text blocks
+              name = nearbyText;
+              console.log('Name from nearby text:', name);
+            }
           }
           
           // Get the progress level
           const level = parseInt($progress.attr('aria-valuenow') || $progress.attr('value') || '0');
+          console.log('Progress level:', level);
           
           if (name && !skillSet.has(name)) {
             skillSet.add(name);
@@ -421,22 +446,30 @@ async function fetchWebsiteContent() {
               name: cleanText(name),
               level: level
             });
+            console.log('Added skill:', name, level);
           }
         });
       });
       
       // If no skills found, try looking in the main content
       if (skills.length === 0) {
-        $('div[class*="chakra-progress"], div[class*="progress"]').each((i, progress) => {
+        console.log('\nNo skills found in sections, searching in main content...');
+        $('div[class*="chakra-progress"], div[class*="progress"], div[role="progressbar"]').each((i, progress) => {
           const $progress = $(progress);
+          console.log(`\nFound progress element ${i + 1} in main content:`);
+          console.log('Progress HTML:', $progress.html());
+          
+          let name = '';
           const $parent = $progress.parent();
           
-          let name = $parent.find('p[class*="chakra-text"], div[class*="chakra-text"], span[class*="chakra-text"]').text().trim();
+          // Try different ways to find the skill name
+          name = $parent.find('p[class*="chakra-text"], div[class*="chakra-text"], span[class*="chakra-text"]').text().trim();
           if (!name) {
             name = $parent.prev().find('p[class*="chakra-text"], div[class*="chakra-text"], span[class*="chakra-text"]').text().trim();
           }
           
           const level = parseInt($progress.attr('aria-valuenow') || $progress.attr('value') || '0');
+          console.log('Found skill:', name, level);
           
           if (name && !skillSet.has(name)) {
             skillSet.add(name);
@@ -444,12 +477,14 @@ async function fetchWebsiteContent() {
               name: cleanText(name),
               level: level
             });
+            console.log('Added skill:', name, level);
           }
         });
       }
       
-      console.log('Skills extracted:', skills.length);
-      console.log('Skills found:', skills.map(s => `${s.name} (${s.level}%)`).join(', '));
+      console.log('\nSkills extraction summary:');
+      console.log('Total skills found:', skills.length);
+      console.log('Skills:', skills.map(s => `${s.name} (${s.level}%)`).join(', '));
 
       // Extract experience with more flexible selectors
       const experiences = [];
