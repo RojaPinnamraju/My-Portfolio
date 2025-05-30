@@ -148,16 +148,21 @@ async function fetchPageContent(url, retries = 3) {
       // First wait for the root element
       await page.waitForSelector('#root', { timeout: 10000 });
       
-      // Then wait for specific sections to be rendered
-      await Promise.all([
-        page.waitForSelector('.skill', { timeout: 10000 }).catch(() => console.log('Skills section not found')),
-        page.waitForSelector('.experience', { timeout: 10000 }).catch(() => console.log('Experience section not found')),
-        page.waitForSelector('.project', { timeout: 10000 }).catch(() => console.log('Projects section not found')),
-        page.waitForSelector('.education', { timeout: 10000 }).catch(() => console.log('Education section not found'))
-      ]);
-
+      // Wait for the main content to be rendered
+      await page.waitForSelector('main', { timeout: 10000 });
+      
       // Additional wait for dynamic content
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(5000);
+
+      // Check if sections exist and log their presence
+      const sections = await page.evaluate(() => {
+        const results = {};
+        ['#skills', '#experience', '#projects', '#education'].forEach(id => {
+          results[id] = !!document.querySelector(id);
+        });
+        return results;
+      });
+      console.log('Section presence:', sections);
     } catch (error) {
       console.log('Hydration check timed out, proceeding with available content:', error.message);
     }
@@ -228,9 +233,9 @@ async function fetchWebsiteContent() {
       // Extract skills
       const skills = [];
       const skillSet = new Set();
-      $('div.skill').each((i, el) => {
-        const name = $(el).find('Text').first().text().trim();
-        const level = parseInt($(el).find('Progress').attr('value') || '0');
+      $('div[class*="skill"]').each((i, el) => {
+        const name = $(el).find('div[class*="name"]').text().trim();
+        const level = parseInt($(el).find('div[class*="progress"]').attr('aria-valuenow') || '0');
         if (name && !skillSet.has(name)) {
           skillSet.add(name);
           skills.push({
@@ -244,13 +249,13 @@ async function fetchWebsiteContent() {
       // Extract experience
       const experiences = [];
       const experienceSet = new Set();
-      $('div.experience').each((i, el) => {
-        const title = $(el).find('.title').text().trim();
-        const company = $(el).find('.company').text().trim();
-        const period = $(el).find('.period').text().trim();
+      $('div[class*="experience"]').each((i, el) => {
+        const title = $(el).find('div[class*="title"]').text().trim();
+        const company = $(el).find('div[class*="company"]').text().trim();
+        const period = $(el).find('div[class*="period"]').text().trim();
         const description = [];
-        $(el).find('.description Text').each((j, desc) => {
-          const text = $(desc).text().trim().replace(/^•\s*/, '');
+        $(el).find('div[class*="description"] li').each((j, desc) => {
+          const text = $(desc).text().trim();
           if (text) description.push(text);
         });
         
@@ -269,13 +274,13 @@ async function fetchWebsiteContent() {
       // Extract education
       const education = [];
       const educationSet = new Set();
-      $('div.education').each((i, el) => {
-        const degree = $(el).find('.degree').text().trim();
-        const school = $(el).find('.school').text().trim();
-        const period = $(el).find('.period').text().trim();
+      $('div[class*="education"]').each((i, el) => {
+        const degree = $(el).find('div[class*="degree"]').text().trim();
+        const school = $(el).find('div[class*="school"]').text().trim();
+        const period = $(el).find('div[class*="period"]').text().trim();
         const details = [];
-        $(el).find('.details Text').each((j, detail) => {
-          const text = $(detail).text().trim().replace(/^•\s*/, '');
+        $(el).find('div[class*="details"] li').each((j, detail) => {
+          const text = $(detail).text().trim();
           if (text) details.push(text);
         });
         
@@ -293,16 +298,16 @@ async function fetchWebsiteContent() {
 
       // Extract projects
       const projects = {};
-      $('div.project').each((i, el) => {
-        const title = $(el).find('.name').text().trim();
-        const description = $(el).find('.description').text().trim();
+      $('div[class*="project"]').each((i, el) => {
+        const title = $(el).find('div[class*="name"]').text().trim();
+        const description = $(el).find('div[class*="description"]').text().trim();
         const technologies = [];
-        $(el).find('.technology').each((j, tech) => {
+        $(el).find('div[class*="technology"]').each((j, tech) => {
           const techName = $(tech).text().trim();
           if (techName) technologies.push(techName);
         });
         const links = [];
-        $(el).find('.link').each((j, link) => {
+        $(el).find('a[class*="link"]').each((j, link) => {
           const href = $(link).attr('href');
           if (href) links.push(href);
         });
@@ -320,9 +325,9 @@ async function fetchWebsiteContent() {
 
       // Extract areas of expertise
       const expertise = [];
-      $('div.Feature').each((i, el) => {
-        const title = $(el).find('Text').first().text().trim();
-        const text = $(el).find('Text').last().text().trim();
+      $('div[class*="feature"]').each((i, el) => {
+        const title = $(el).find('div[class*="title"]').text().trim();
+        const text = $(el).find('div[class*="description"]').text().trim();
         if (title && text) {
           expertise.push({
             title: cleanText(title),
