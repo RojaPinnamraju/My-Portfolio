@@ -21,9 +21,6 @@ async function fetchWebsiteContent() {
     const url = `${backendUrl}/api/content`;
     console.log('Making request to:', url);
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout to allow for function cleanup
-
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -31,34 +28,21 @@ async function fetchWebsiteContent() {
         'Content-Type': 'application/json',
         'Origin': 'https://rojapinnamraju-portfolio.netlify.app'
       },
-      signal: controller.signal,
-      // Add fetch timeout
-      timeout: 7000 // 7 second fetch timeout
+      timeout: 5000 // 5 second timeout
     });
     
-    clearTimeout(timeout);
-    
     if (!response.ok) {
-      console.error('Backend response not OK:', response.status, response.statusText);
-      console.error('Response headers:', response.headers);
       const errorText = await response.text();
-      console.error('Error response body:', errorText);
       throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
     }
     
     const content = await response.json();
-    console.log('Content fetched successfully:', JSON.stringify(content, null, 2));
+    console.log('Content fetched successfully');
     return content;
   } catch (error) {
     console.error('Error fetching content:', error);
-    console.error('Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      code: error.code
-    });
-    if (error.name === 'AbortError') {
-      throw new Error('Request timed out after 8 seconds');
+    if (error.name === 'AbortError' || error.type === 'request-timeout') {
+      throw new Error('Request timed out after 5 seconds');
     }
     return {
       about: 'No information available',
@@ -237,10 +221,6 @@ When responding:
 18. If you're unsure about any information, respond with: "I don't have that information in my portfolio."`;
 
     console.log('Creating chat completion...');
-    // Add timeout for Groq API call
-    const groqController = new AbortController();
-    const groqTimeout = setTimeout(() => groqController.abort(), 8000);
-
     try {
       const completion = await groq.chat.completions.create({
         messages: [
@@ -249,11 +229,8 @@ When responding:
         ],
         model: 'llama3-70b-8192',
         temperature: 0.7,
-        max_tokens: 1024,
-        signal: groqController.signal
+        max_tokens: 1024
       });
-
-      clearTimeout(groqTimeout);
 
       if (!completion.choices?.[0]?.message?.content) {
         throw new Error('No response content from Groq API');
@@ -265,7 +242,6 @@ When responding:
         body: JSON.stringify({ response: completion.choices[0].message.content })
       };
     } catch (groqError) {
-      clearTimeout(groqTimeout);
       console.error('Groq API Error:', groqError);
       return {
         statusCode: 200,
