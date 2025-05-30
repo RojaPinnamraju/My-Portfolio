@@ -202,12 +202,12 @@ async function fetchWebsiteContent() {
 
     // Extract experience
     const experiences = [];
-    $('.experience, [class*="experience"], [class*="Experience"]').each((i, el) => {
-      const title = $(el).find('.title, [class*="title"]').text();
-      const company = $(el).find('.company, [class*="company"]').text();
-      const period = $(el).find('.period, [class*="period"]').text();
+    $('[class*="experience"], [class*="Experience"], [class*="work"], [class*="Work"], [class*="job"], [class*="Job"]').each((i, el) => {
+      const title = $(el).find('[class*="chakra-heading"], [class*="title"], [class*="position"]').text();
+      const company = $(el).find('[class*="company"], [class*="organization"], [class*="employer"]').text();
+      const period = $(el).find('[class*="period"], [class*="date"], [class*="duration"]').text();
       const description = [];
-      $(el).find('.description li, .description p, [class*="description"] li, [class*="description"] p').each((j, item) => {
+      $(el).find('[class*="description"], [class*="details"], [class*="responsibilities"], li, p').each((j, item) => {
         const text = $(item).text().trim();
         if (text) {
           description.push(cleanText(text.replace(/^•\s*/, '')));
@@ -227,12 +227,12 @@ async function fetchWebsiteContent() {
 
     // Extract education
     const education = [];
-    $('.education, [class*="education"], [class*="Education"], [class*="chakra-stack"]').each((i, el) => {
-      const degree = $(el).find('.degree, [class*="degree"]').text();
-      const school = $(el).find('.school, [class*="school"]').text();
-      const period = $(el).find('.period, [class*="period"]').text();
+    $('[class*="education"], [class*="Education"], [class*="academic"], [class*="Academic"], [class*="school"], [class*="School"]').each((i, el) => {
+      const degree = $(el).find('[class*="chakra-heading"], [class*="degree"], [class*="program"]').text();
+      const school = $(el).find('[class*="school"], [class*="institution"], [class*="university"]').text();
+      const period = $(el).find('[class*="period"], [class*="date"], [class*="duration"]').text();
       const details = [];
-      $(el).find('.details li, .details p, [class*="details"] li, [class*="details"] p').each((j, item) => {
+      $(el).find('[class*="details"], [class*="description"], [class*="achievements"], li, p').each((j, item) => {
         const text = $(item).text().trim();
         if (text) {
           details.push(cleanText(text.replace(/^•\s*/, '')));
@@ -252,9 +252,9 @@ async function fetchWebsiteContent() {
 
     // Extract projects
     const projects = {};
-    $('.project, [class*="project"], [class*="chakra-stack"]').each((i, el) => {
-      const title = $(el).find('[class*="chakra-heading"], [class*="chakra-text"][font-weight="600"]').text();
-      const description = $(el).find('[class*="chakra-text"]').text();
+    $('[class*="project"], [class*="Project"], [class*="portfolio"], [class*="Portfolio"]').each((i, el) => {
+      const title = $(el).find('[class*="chakra-heading"], [class*="title"], [class*="name"]').text();
+      const description = $(el).find('[class*="description"], [class*="details"], [class*="summary"]').text();
       if (title) {
         projects[cleanText(title)] = cleanText(description);
       }
@@ -263,9 +263,9 @@ async function fetchWebsiteContent() {
 
     // Extract contact
     const contact = {};
-    $('.contact-item, [class*="contact"], [class*="chakra-stack"]').each((i, el) => {
-      const type = $(el).find('[class*="chakra-text"][font-weight="600"]').text();
-      const value = $(el).find('[class*="chakra-text"]').text();
+    $('[class*="contact"], [class*="Contact"], [class*="social"], [class*="Social"], [class*="connect"], [class*="Connect"]').each((i, el) => {
+      const type = $(el).find('[class*="chakra-heading"], [class*="label"], [class*="type"]').text();
+      const value = $(el).find('[class*="value"], [class*="link"], [class*="text"], a').text();
       if (type) {
         contact[cleanText(type)] = cleanText(value);
       }
