@@ -123,7 +123,9 @@ const Chatbot = () => {
 
     try {
       console.log('Sending message to chat function...');
-      const endpoint = 'http://localhost:8888/.netlify/functions/chat';
+      const endpoint = process.env.NODE_ENV === 'production' 
+        ? 'https://my-portfolio-olw8.netlify.app/.netlify/functions/chat'
+        : 'http://localhost:8888/.netlify/functions/chat';
       console.log('Using endpoint:', endpoint);
 
       const response = await fetch(endpoint, {

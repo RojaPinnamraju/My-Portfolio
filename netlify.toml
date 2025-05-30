@@ -15,7 +15,7 @@
   memory = 1024
 
 [build.environment]
-  BACKEND_URL = "https://portfolio-backend.onrender.com"
+  BACKEND_URL = "https://portfolio-backend-zwr8.onrender.com"
 
 [[redirects]]
   from = "/*"
