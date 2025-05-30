@@ -9,7 +9,7 @@ const groq = new Groq({
 // Function to fetch website content
 async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
-  const backendUrl = 'http://localhost:3000';  // Hardcode local development URL
+  const backendUrl = process.env.BACKEND_URL || 'https://portfolio-backend.onrender.com';
   console.log('Using backend URL:', backendUrl);
   
   try {
