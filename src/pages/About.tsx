@@ -230,12 +230,12 @@ const About: React.FC = () => {
           <section data-section="education">
             <VStack spacing={8} align="stretch">
               <Education
-                degree="Master of Science in Computer Science"
+                degree="Master of Science in Software Engineering Systems"
                 school="Northeastern University"
-                period="2023 - 2025"
+                period="2022 - 2023"
                 details={[
-                  "Specializing in Software Engineering and Artificial Intelligence",
-                  "Relevant Coursework: Data Structures, Algorithms, Software Engineering, Machine Learning",
+                  "Pursued a Master's degree in Software Engineeringe Engineerinng at Northeastern University, focusing on Software Engineering and Artificial Intelligence.",
+                  "Relevant Coursework: Data Structures, Algorithms, Software Engineering, Object Oriented Programming, Web Development, Database Management Systems",
                   "GPA: 3.8/4.0"
                 ]}
               />

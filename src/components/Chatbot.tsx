@@ -271,7 +271,7 @@ const Chatbot = () => {
               </Box>
               <Box>
                 <Heading size="sm">Chat with me</Heading>
-                <Badge colorScheme="brand" fontSize="xs">AI Assistant</Badge>
+                <Badge colorScheme="brand" fontSize="xs">AI AVATAR</Badge>
               </Box>
             </Flex>
           </DrawerHeader>
@@ -314,7 +314,7 @@ const Chatbot = () => {
                       {message.role === 'assistant' && (
                         <Avatar
                           size="sm"
-                          name="AI Assistant"
+                          name="AI Avatar"
                           bg="brand.500"
                           color="white"
                         />
