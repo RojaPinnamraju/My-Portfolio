@@ -108,7 +108,7 @@ async function fetchPageContent(url, retries = 3) {
         '--disable-site-isolation-trials'
       ],
       headless: 'new',
-      timeout: 30000 // Increased timeout for better reliability
+      timeout: 30000
     };
 
     console.log('Launching browser with options:', JSON.stringify(launchOptions, null, 2));
@@ -173,19 +173,6 @@ async function fetchPageContent(url, retries = 3) {
       // Additional wait for dynamic content
       await page.waitForTimeout(5000);
 
-      // Log all available classes for debugging
-      const classes = await page.evaluate(() => {
-        const elements = document.querySelectorAll('*');
-        const classSet = new Set();
-        elements.forEach(el => {
-          if (el.className) {
-            el.className.split(' ').forEach(cls => classSet.add(cls));
-          }
-        });
-        return Array.from(classSet);
-      });
-      console.log('Available classes:', classes);
-
       // Log the actual content for debugging
       const content = await page.evaluate(() => {
         const app = document.querySelector('div.App');
@@ -211,7 +198,7 @@ async function fetchPageContent(url, retries = 3) {
     }
     
     if (retries > 1) {
-      const delay = (4 - retries) * 1000; // Reduced delay
+      const delay = (4 - retries) * 1000;
       console.log(`Retrying in ${delay}ms... (${retries - 1} attempts remaining)`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return fetchPageContent(url, retries - 1);
@@ -260,7 +247,7 @@ async function fetchWebsiteContent() {
       const aboutText = $('div.App').find('Text[fontSize="lg"]').first().text();
       console.log('About text extracted:', aboutText ? 'Yes' : 'No');
 
-      // Extract skills with more specific selectors
+      // Extract skills
       const skills = [];
       const skillSet = new Set();
       $('div[class*="chakra-progress"]').each((i, el) => {
@@ -276,7 +263,7 @@ async function fetchWebsiteContent() {
       });
       console.log('Skills extracted:', skills.length);
 
-      // Extract experience with more specific selectors
+      // Extract experience
       const experiences = [];
       const experienceSet = new Set();
       $('section[data-section="experience"] div[class*="chakra-stack"]').each((i, el) => {
@@ -301,7 +288,7 @@ async function fetchWebsiteContent() {
       });
       console.log('Experiences extracted:', experiences.length);
 
-      // Extract education with more specific selectors
+      // Extract education
       const education = [];
       const educationSet = new Set();
       $('section[data-section="education"] div[class*="chakra-stack"]').each((i, el) => {
@@ -326,7 +313,7 @@ async function fetchWebsiteContent() {
       });
       console.log('Education extracted:', education.length);
 
-      // Extract projects with more specific selectors
+      // Extract projects
       const projects = {};
       $('section[data-section="projects"] div[class*="chakra-stack"]').each((i, el) => {
         const title = $(el).find('h2[class*="chakra-heading"]').text().trim();
@@ -355,7 +342,7 @@ async function fetchWebsiteContent() {
 
       // Extract areas of expertise
       const expertise = [];
-      $('div[class*="css-"]').each((i, el) => {
+      $('section[data-section="expertise"] div[class*="chakra-stack"]').each((i, el) => {
         const title = $(el).find('div[class*="chakra-text"][class*="fontWeight"]').text().trim();
         const text = $(el).find('div[class*="chakra-text"][class*="gray"]').text().trim();
         if (title && text) {
