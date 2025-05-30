@@ -471,30 +471,52 @@ async function fetchWebsiteContent() {
       // Extract projects with more flexible selectors
       const projects = {};
       const projectSet = new Set();
-      $('.project, div[class*="project"], div[class*="chakra-stack"] div[class*="project"], div[class*="chakra-container"] div[class*="project"]').each((i, el) => {
-        const $el = $(el);
-        const name = $el.find('.title, h2[class*="chakra-heading"], h2[class*="title"], h3[class*="chakra-heading"], div[class*="title"]').text().trim();
-        const description = $el.find('.description, div[class*="description"], div[class*="chakra-text"], p[class*="chakra-text"]').text().trim();
+      
+      // Debug: Log the HTML structure around potential project elements
+      console.log('Searching for projects in HTML...');
+      
+      // Find all project stacks
+      $('div[class*="chakra-stack"]').each((i, stack) => {
+        const $stack = $(stack);
         
-        if (name && description) {
-          const technologies = [];
-          $el.find('.technologies span, div[class*="technologies"] span, div[class*="tech-stack"] span, div[class*="badge"], span[class*="chakra-text"]').each((j, tech) => {
-            const techName = $(tech).text().trim();
-            if (techName && techName.length > 2) {
-              technologies.push(techName);
-            }
-          });
+        // Check if this stack contains project information
+        const hasProjectImage = $stack.find('img[alt]').length > 0;
+        const hasProjectTitle = $stack.find('div[class*="chakra-stack"] > div').length > 0;
+        
+        if (hasProjectImage || hasProjectTitle) {
+          console.log(`\nAnalyzing project stack ${i + 1}:`);
           
-          const links = [];
-          $el.find('a[class*="chakra-link"], a[class*="link"], a').each((j, link) => {
-            const href = $(link).attr('href');
-            if (href && !href.includes('#') && !href.includes('localhost')) {
-              links.push(href);
-            }
-          });
+          // Get project name from image alt or title
+          const name = $stack.find('img[alt]').attr('alt') || '';
+          console.log('Project name from alt:', name);
           
-          if (!projectSet.has(name)) {
+          // Get project description from the second stack div
+          const description = $stack.find('div[class*="chakra-stack"] > div').eq(1).text().trim();
+          console.log('Project description:', description);
+          
+          if (name && !projectSet.has(name)) {
             projectSet.add(name);
+            
+            // Extract technologies from badges
+            const technologies = [];
+            $stack.find('span[class*="chakra-badge"], span[class*="technology"]').each((j, tech) => {
+              const techName = $(tech).text().trim();
+              if (techName && techName.length > 2) {
+                technologies.push(techName);
+              }
+            });
+            console.log('Found technologies:', technologies);
+            
+            // Extract links
+            const links = [];
+            $stack.find('a[href]').each((j, link) => {
+              const href = $(link).attr('href');
+              if (href && !href.includes('#') && !href.includes('localhost')) {
+                links.push(href);
+              }
+            });
+            console.log('Found links:', links);
+            
             projects[`project-${i + 1}`] = {
               name: cleanText(name),
               description: cleanText(description),
@@ -504,7 +526,13 @@ async function fetchWebsiteContent() {
           }
         }
       });
-      console.log('Projects extracted:', Object.keys(projects).length);
+      
+      console.log('\nProjects extraction summary:');
+      console.log('Total projects found:', Object.keys(projects).length);
+      if (Object.keys(projects).length > 0) {
+        console.log('Project names:', Object.values(projects).map(p => p.name));
+        console.log('Project details:', JSON.stringify(projects, null, 2));
+      }
 
       // Extract contact information with more flexible selectors
       const contact = {};
