@@ -223,13 +223,14 @@ async function fetchWebsiteContent() {
       // Extract skills
       const skills = [];
       const skillSet = new Set();
-      $('div.App').find('div').each((i, el) => {
-        const text = $(el).text().trim();
-        if (text && ['Clean Code', 'Web Development', 'AI/ML'].includes(text) && !skillSet.has(text)) {
-          skillSet.add(text);
+      $('div.App').find('div.skill').each((i, el) => {
+        const name = $(el).find('Text').first().text().trim();
+        const level = parseInt($(el).find('Progress').attr('value') || '0');
+        if (name && !skillSet.has(name)) {
+          skillSet.add(name);
           skills.push({
-            name: cleanText(text),
-            level: 90 // Default level for main skills
+            name: cleanText(name),
+            level: level
           });
         }
       });
@@ -238,19 +239,24 @@ async function fetchWebsiteContent() {
       // Extract experience
       const experiences = [];
       const experienceSet = new Set();
-      $('div.App').find('div').each((i, el) => {
-        const text = $(el).text().trim();
-        if (text && text.includes('Software Engineer') && !experienceSet.has(text)) {
-          experienceSet.add(text);
-          const description = extractUniqueContent(text);
-          if (description.length > 0) {
-            experiences.push({
-              title: 'Software Engineer',
-              company: 'Current',
-              period: 'Present',
-              description: [extractMainContent(text)].filter(Boolean)
-            });
-          }
+      $('div.App').find('div.experience').each((i, el) => {
+        const title = $(el).find('.title').text().trim();
+        const company = $(el).find('.company').text().trim();
+        const period = $(el).find('.period').text().trim();
+        const description = [];
+        $(el).find('.description Text').each((j, desc) => {
+          const text = $(desc).text().trim().replace(/^•\s*/, '');
+          if (text) description.push(text);
+        });
+        
+        if (title && company && !experienceSet.has(title + company)) {
+          experienceSet.add(title + company);
+          experiences.push({
+            title: cleanText(title),
+            company: cleanText(company),
+            period: cleanText(period),
+            description: description
+          });
         }
       });
       console.log('Experiences extracted:', experiences.length);
@@ -277,18 +283,27 @@ async function fetchWebsiteContent() {
 
       // Extract projects
       const projects = {};
-      $('div.App').find('a').each((i, el) => {
-        const href = $(el).attr('href');
-        if (href && href.includes('github.com')) {
-          const title = $(el).text().trim() || 'GitHub Project';
-          if (!projects[title]) {
-            projects[title] = {
-              name: title,
-              description: 'GitHub Repository',
-              technologies: ['Various'],
-              links: [href]
-            };
-          }
+      $('div.App').find('div.project').each((i, el) => {
+        const title = $(el).find('.name').text().trim();
+        const description = $(el).find('.description').text().trim();
+        const technologies = [];
+        $(el).find('.technology').each((j, tech) => {
+          const techName = $(tech).text().trim();
+          if (techName) technologies.push(techName);
+        });
+        const links = [];
+        $(el).find('.link').each((j, link) => {
+          const href = $(link).attr('href');
+          if (href) links.push(href);
+        });
+        
+        if (title && !projects[title]) {
+          projects[title] = {
+            name: cleanText(title),
+            description: cleanText(description),
+            technologies: technologies,
+            links: links
+          };
         }
       });
       console.log('Projects extracted:', Object.keys(projects).length);
