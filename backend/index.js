@@ -8,7 +8,9 @@ require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 3000;
-const portfolioUrl = process.env.PORTFOLIO_URL || 'http://localhost:5173';
+const portfolioUrl = process.env.NODE_ENV === 'production' 
+  ? 'https://my-portfolio-olw8.onrender.com'
+  : (process.env.PORTFOLIO_URL || 'http://localhost:5173');
 
 // Cache configuration
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
