@@ -72,6 +72,16 @@ async function fetchPageContent(url, retries = 3) {
     browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
 
+    // Enable request interception for debugging
+    await page.setRequestInterception(true);
+    page.on('request', request => {
+      console.log(`Request: ${request.method()} ${request.url()}`);
+      request.continue();
+    });
+    page.on('response', response => {
+      console.log(`Response: ${response.status()} ${response.url()}`);
+    });
+
     // Set viewport and user agent
     await page.setViewport({ width: 1280, height: 800 });
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
@@ -79,7 +89,7 @@ async function fetchPageContent(url, retries = 3) {
     // Navigate to the page and wait for network idle
     console.log('Navigating to page...');
     await page.goto(url, { 
-      waitUntil: 'networkidle0',
+      waitUntil: ['networkidle0', 'domcontentloaded'],
       timeout: 30000 
     });
 
@@ -87,9 +97,19 @@ async function fetchPageContent(url, retries = 3) {
     console.log('Waiting for content to load...');
     await page.waitForSelector('body', { timeout: 5000 });
 
+    // Wait for any dynamic content
+    console.log('Waiting for dynamic content...');
+    await page.waitForTimeout(2000);
+
     // Get the page content
     const html = await page.content();
     console.log('Content fetched successfully, length:', html.length);
+    console.log('Page URL:', await page.url());
+    console.log('Page title:', await page.title());
+
+    // Take a screenshot for debugging
+    await page.screenshot({ path: 'debug-screenshot.png' });
+    console.log('Screenshot saved for debugging');
 
     await browser.close();
     return html;
