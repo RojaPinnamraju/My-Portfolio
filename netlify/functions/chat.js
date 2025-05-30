@@ -9,18 +9,21 @@ const groq = new Groq({
 // Function to fetch website content
 async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
-  const backendUrl = process.env.BACKEND_URL || 'https://portfolio-backend.onrender.com';
+  const backendUrl = process.env.BACKEND_URL || 'https://portfolio-backend-zwr8.onrender.com';
   console.log('Using backend URL:', backendUrl);
   
   try {
     // Add /api prefix to the URL
     console.log('Making request to:', `${backendUrl}/api/content`);
     const response = await fetch(`${backendUrl}/api/content`, {
+      method: 'GET',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Origin': 'https://my-portfolio-olw8.netlify.app'
-      }
+      },
+      mode: 'cors',
+      credentials: 'include'
     });
     
     if (!response.ok) {
@@ -56,9 +59,10 @@ async function fetchWebsiteContent() {
 export const handler = async function(event, context) {
   // Enable CORS
   const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Origin': 'https://my-portfolio-olw8.netlify.app',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Origin, Accept',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Credentials': 'true',
     'Content-Type': 'application/json'
   };
 
