@@ -3,7 +3,6 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 const puppeteer = require('puppeteer');
-const chromium = require('@sparticuz/chromium');
 require('dotenv').config();
 
 const app = express();
@@ -59,7 +58,6 @@ async function fetchPageContent(url, retries = 3) {
     // Launch browser with appropriate options for Render environment
     const launchOptions = {
       args: [
-        ...chromium.args,
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
@@ -71,8 +69,7 @@ async function fetchPageContent(url, retries = 3) {
         width: 1280,
         height: 800
       },
-      executablePath: process.env.CHROME_BIN || await chromium.executablePath,
-      headless: true,
+      headless: 'new',
       ignoreHTTPSErrors: true
     };
 
