@@ -19,7 +19,7 @@ let lastFetchTime = null;
 
 // CORS configuration
 const corsOptions = {
-  origin: '*', // Allow all origins in development
+  origin: ['https://my-portfolio-olw8.netlify.app', 'http://localhost:5173', 'http://localhost:8888'],
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -267,7 +267,8 @@ async function fetchPageContent(url, retries = 3) {
           'Connection': 'keep-alive',
           'Upgrade-Insecure-Requests': '1',
           'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
+          'Pragma': 'no-cache',
+          'Origin': 'https://my-portfolio-olw8.netlify.app'
         },
         timeout: 30000 // 30 second timeout
       });
@@ -275,6 +276,8 @@ async function fetchPageContent(url, retries = 3) {
       clearTimeout(timeout);
 
       if (!response.ok) {
+        console.error(`HTTP error! status: ${response.status}`);
+        console.error('Response headers:', response.headers);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 

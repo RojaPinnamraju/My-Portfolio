@@ -14,11 +14,23 @@ async function fetchWebsiteContent() {
   
   try {
     // Add /api prefix to the URL
-    const response = await fetch(`${backendUrl}/api/content`);
+    console.log('Making request to:', `${backendUrl}/api/content`);
+    const response = await fetch(`${backendUrl}/api/content`, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Origin': 'https://my-portfolio-olw8.netlify.app'
+      }
+    });
+    
     if (!response.ok) {
       console.error('Backend response not OK:', response.status, response.statusText);
-      throw new Error(`HTTP error! status: ${response.status}`);
+      console.error('Response headers:', response.headers);
+      const errorText = await response.text();
+      console.error('Error response body:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
     }
+    
     const content = await response.json();
     console.log('Content fetched successfully:', JSON.stringify(content, null, 2));
     return content;
