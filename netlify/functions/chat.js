@@ -40,11 +40,28 @@ async function fetchWebsiteContent() {
         const backendUrl = process.env.BACKEND_URL || 'https://portfolio-backend-zwr8.onrender.com';
         console.log('Using backend URL:', backendUrl);
         
+        // Try to warm up the backend first
+        try {
+          const warmupUrl = `${backendUrl}/warmup`;
+          console.log('Warming up backend...');
+          await fetch(warmupUrl, { 
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Origin': 'https://rojapinnamraju-portfolio.netlify.app'
+            },
+            signal: AbortSignal.timeout(5000) // 5 second timeout for warmup
+          });
+        } catch (warmupError) {
+          console.log('Warm-up failed, continuing with content fetch:', warmupError.message);
+        }
+        
         const url = `${backendUrl}/api/content`;
         console.log('Making request to:', url);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // Reduced from 12000
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
         const response = await fetch(url, {
           method: 'GET',
@@ -144,8 +161,20 @@ export const handler = async function(event, context) {
     }
 
     console.log('Fetching website content...');
-    const content = await fetchWebsiteContent();
-    console.log('Content fetched successfully');
+    let content;
+    try {
+      content = await fetchWebsiteContent();
+      console.log('Content fetched successfully');
+    } catch (error) {
+      console.error('Failed to fetch content:', error);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          response: "I'm having trouble accessing my portfolio information right now. Please try again in a few moments."
+        })
+      };
+    }
 
     const systemPrompt = `You are Roja Pinnamraju, a Software Engineer and AI enthusiast. You should respond to questions in first person, as if you are speaking directly to the user. Here is your information:
 

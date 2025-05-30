@@ -401,6 +401,19 @@ app.get('/api/content', async (req, res) => {
   }
 });
 
+// Add warm-up endpoint
+app.get('/warmup', async (req, res) => {
+  console.log('Warm-up endpoint called');
+  try {
+    // Pre-fetch content
+    await fetchWebsiteContent();
+    res.json({ status: 'warmed up' });
+  } catch (error) {
+    console.error('Warm-up failed:', error);
+    res.status(500).json({ error: 'Warm-up failed' });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
@@ -422,7 +435,7 @@ app.use((req, res) => {
 });
 
 // Start server
-const server = app.listen(port, () => {
+const server = app.listen(port, async () => {
   console.log(`Server running on port ${port}`);
   console.log(`Fetching content from ${portfolioUrl}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -430,18 +443,16 @@ const server = app.listen(port, () => {
   console.log(`- GET /`);
   console.log(`- GET /health`);
   console.log(`- GET /api/content`);
+  console.log(`- GET /warmup`);
   
-  // Log all registered routes
-  const routes = [];
-  app._router.stack.forEach(middleware => {
-    if (middleware.route) {
-      routes.push({
-        path: middleware.route.path,
-        methods: Object.keys(middleware.route.methods)
-      });
-    }
-  });
-  console.log('Registered routes:', routes);
+  // Pre-fetch content on startup
+  try {
+    console.log('Pre-fetching content on startup...');
+    await fetchWebsiteContent();
+    console.log('Initial content fetch successful');
+  } catch (error) {
+    console.error('Initial content fetch failed:', error);
+  }
 });
 
 // Handle server shutdown gracefully
