@@ -322,21 +322,60 @@ When responding:
       max_tokens: 1024
     });
 
+    // Increase timeout for complex responses, but keep it shorter for simple ones
+    const isSimpleMessage = /^(hi|hello|thanks|thank you|bye|goodbye|ok|great|thanks)$/i.test(message.trim());
+    const timeoutDuration = isSimpleMessage ? 3000 : 5000; // 3 seconds for simple messages, 5 for complex ones
+
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Chat completion timeout')), 5000);
+      setTimeout(() => reject(new Error('Chat completion timeout')), timeoutDuration);
     });
 
-    const completion = await Promise.race([completionPromise, timeoutPromise]);
+    try {
+      const completion = await Promise.race([completionPromise, timeoutPromise]);
 
-    if (!completion.choices?.[0]?.message?.content) {
-      throw new Error('No response content from Groq API');
+      if (!completion.choices?.[0]?.message?.content) {
+        throw new Error('No response content from Groq API');
+      }
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ response: completion.choices[0].message.content })
+      };
+    } catch (error) {
+      console.error('Error in chat completion:', error);
+      
+      // For simple messages, provide a default response instead of an error
+      if (isSimpleMessage) {
+        const defaultResponses = {
+          'hi': 'Hi!',
+          'hello': 'Hello!',
+          'thanks': 'You\'re welcome!',
+          'thank you': 'You\'re welcome!',
+          'bye': 'Goodbye!',
+          'goodbye': 'Goodbye!',
+          'ok': 'Great!',
+          'great': 'Great!'
+        };
+        
+        const defaultResponse = defaultResponses[message.trim().toLowerCase()] || 'Thanks!';
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ response: defaultResponse })
+        };
+      }
+      
+      // For complex messages, return a more specific error message
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          response: "I'm having trouble processing your request right now. Please try again in a few moments."
+        })
+      };
     }
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ response: completion.choices[0].message.content })
-    };
   } catch (error) {
     console.error('Error in chat endpoint:', error);
     
