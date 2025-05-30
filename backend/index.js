@@ -19,7 +19,12 @@ let lastFetchTime = null;
 
 // CORS configuration
 const corsOptions = {
-  origin: ['https://my-portfolio-olw8.netlify.app', 'http://localhost:5173', 'http://localhost:8888'],
+  origin: [
+    'https://my-portfolio-olw8.netlify.app',
+    'http://localhost:5173',
+    'http://localhost:8888',
+    'https://my-portfolio-olw8.netlify.app/.netlify/functions/chat'
+  ],
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
   credentials: true,
