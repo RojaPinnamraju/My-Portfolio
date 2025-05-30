@@ -43,6 +43,9 @@ async function fetchWebsiteContent() {
         const url = `${backendUrl}/api/content`;
         console.log('Making request to:', url);
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+
         const response = await fetch(url, {
           method: 'GET',
           headers: {
@@ -50,8 +53,10 @@ async function fetchWebsiteContent() {
             'Content-Type': 'application/json',
             'Origin': 'https://rojapinnamraju-portfolio.netlify.app'
           },
-          timeout: 12000 // 12 second timeout
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
           const errorText = await response.text();
