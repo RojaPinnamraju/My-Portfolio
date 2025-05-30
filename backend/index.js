@@ -82,7 +82,7 @@ async function fetchPageContent(url, retries = 3) {
 // Function to fetch website content with caching
 async function fetchWebsiteContent() {
   console.log('Starting website content fetch...');
-  const url = `${portfolioUrl}/#/about`;
+  const url = `${portfolioUrl}`;  // Remove the /#/about fragment
   console.log('Fetching from URL:', url);
 
   try {
