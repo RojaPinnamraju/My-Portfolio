@@ -6,9 +6,21 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
+// Add cache configuration at the top of the file
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+let contentCache = null;
+let lastFetchTime = null;
+
 // Function to fetch website content
 async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
+  
+  // Check if we have valid cached content
+  if (contentCache && lastFetchTime && (Date.now() - lastFetchTime < CACHE_DURATION)) {
+    console.log('Returning cached content');
+    return contentCache;
+  }
+
   const backendUrl = process.env.BACKEND_URL || 'https://portfolio-backend-zwr8.onrender.com';
   console.log('Using backend URL:', backendUrl);
   console.log('Environment variables:', {
@@ -38,10 +50,20 @@ async function fetchWebsiteContent() {
     
     const content = await response.json();
     console.log('Content fetched successfully');
+
+    // Update cache
+    contentCache = content;
+    lastFetchTime = Date.now();
+    
     return content;
   } catch (error) {
     console.error('Error fetching content:', error);
-    // Return default content instead of throwing
+    // Return cached content if available, even if expired
+    if (contentCache) {
+      console.log('Returning expired cached content due to error');
+      return contentCache;
+    }
+    // Return default content if no cache is available
     return {
       about: 'Software Engineer and AI enthusiast',
       experience: [],
