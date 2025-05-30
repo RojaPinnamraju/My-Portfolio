@@ -81,7 +81,9 @@ export const handler = async function(event, context) {
 
   // Enable CORS
   const headers = {
-    'Access-Control-Allow-Origin': 'https://my-portfolio-olw8.netlify.app',
+    'Access-Control-Allow-Origin': process.env.NODE_ENV === 'production' 
+      ? 'https://my-portfolio-olw8.netlify.app'
+      : '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, Origin, Accept',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Credentials': 'true',
