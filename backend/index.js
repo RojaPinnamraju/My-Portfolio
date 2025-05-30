@@ -146,14 +146,30 @@ async function fetchPageContent(url, retries = 3) {
     console.log('Waiting for React to hydrate...');
     try {
       // First wait for the root element
-      await page.waitForSelector('#root', { timeout: 10000 });
+      await page.waitForSelector('#root', { timeout: 30000 });
       
       // Wait for the main content to be rendered
-      await page.waitForSelector('div.App', { timeout: 10000 });
+      await page.waitForSelector('div.App', { timeout: 30000 });
       
-      // Wait for navigation to complete
-      await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 10000 });
-      
+      // Wait for React to finish rendering
+      await page.evaluate(() => {
+        return new Promise((resolve) => {
+          let attempts = 0;
+          const checkReady = () => {
+            attempts++;
+            const app = document.querySelector('div.App');
+            if (app && app.textContent.length > 100) {
+              resolve();
+            } else if (attempts < 10) {
+              setTimeout(checkReady, 1000);
+            } else {
+              resolve(); // Resolve anyway after 10 attempts
+            }
+          };
+          checkReady();
+        });
+      });
+
       // Additional wait for dynamic content
       await page.waitForTimeout(5000);
 
@@ -179,6 +195,14 @@ async function fetchPageContent(url, retries = 3) {
         return structure;
       });
       console.log('HTML structure:', htmlStructure);
+
+      // Log the actual content for debugging
+      const content = await page.evaluate(() => {
+        const app = document.querySelector('div.App');
+        return app ? app.innerHTML : 'No App element found';
+      });
+      console.log('App content length:', content.length);
+      console.log('First 500 chars of content:', content.substring(0, 500));
     } catch (error) {
       console.log('Hydration check timed out, proceeding with available content:', error.message);
     }
