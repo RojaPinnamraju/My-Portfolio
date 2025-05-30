@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
+const puppeteer = require('puppeteer');
+const chromium = require('@sparticuz/chromium');
 require('dotenv').config();
 
 const app = express();
@@ -48,41 +50,50 @@ const cleanText = (text) => {
   return text.replace(/\s+/g, ' ').trim();
 };
 
-// Function to fetch page content
+// Function to fetch page content using Puppeteer
 async function fetchPageContent(url, retries = 3) {
   console.log(`Fetching content from ${url} (attempt ${4 - retries}/3)`);
   
+  let browser;
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      },
-      redirect: 'follow',
-      follow: 5
+    // Launch browser with appropriate options
+    const launchOptions = {
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath,
+      headless: chromium.headless,
+      ignoreHTTPSErrors: true,
+    };
+
+    browser = await puppeteer.launch(launchOptions);
+    const page = await browser.newPage();
+
+    // Set viewport and user agent
+    await page.setViewport({ width: 1280, height: 800 });
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+
+    // Navigate to the page and wait for network idle
+    console.log('Navigating to page...');
+    await page.goto(url, { 
+      waitUntil: 'networkidle0',
+      timeout: 30000 
     });
 
-    console.log('Response status:', response.status);
-    console.log('Response headers:', response.headers.raw());
+    // Wait for content to be loaded
+    console.log('Waiting for content to load...');
+    await page.waitForSelector('body', { timeout: 5000 });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}, statusText: ${response.statusText}`);
-    }
-
-    const html = await response.text();
+    // Get the page content
+    const html = await page.content();
     console.log('Content fetched successfully, length:', html.length);
+
+    await browser.close();
     return html;
   } catch (error) {
     console.error('Error fetching page content:', error);
-    console.error('Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      url: url
-    });
+    if (browser) {
+      await browser.close();
+    }
     
     if (retries > 1) {
       console.log(`Retrying... (${retries - 1} attempts remaining)`);
@@ -96,7 +107,7 @@ async function fetchPageContent(url, retries = 3) {
 // Function to fetch website content with caching
 async function fetchWebsiteContent() {
   console.log('Starting website content fetch...');
-  const url = `${portfolioUrl}`;  // Use the base URL without any path
+  const url = `${portfolioUrl}/about`;  // Try with /about path
   console.log('Fetching from URL:', url);
 
   try {
@@ -108,7 +119,9 @@ async function fetchWebsiteContent() {
       title: $('title').text(),
       bodyLength: $('body').text().length,
       sections: $('section').length,
-      metaDescription: $('meta[name="description"]').attr('content')
+      metaDescription: $('meta[name="description"]').attr('content'),
+      links: $('a').length,
+      scripts: $('script').length
     });
 
     // Try different selectors for about section
@@ -118,15 +131,20 @@ async function fetchWebsiteContent() {
       '[class*="about"]',
       '[class*="About"]',
       '#about',
-      '.about'
+      '.about',
+      'main',
+      'article',
+      '[role="main"]'
     ];
 
     for (const selector of aboutSelectors) {
       const section = $(selector);
       if (section.length > 0) {
-        aboutText = section.find('Text, [class*="chakra-text"], p, div').text();
-        console.log(`Found about section using selector: ${selector}`);
-        break;
+        aboutText = section.find('Text, [class*="chakra-text"], p, div, span').text();
+        console.log(`Found content using selector: ${selector}`);
+        if (aboutText.trim().length > 0) {
+          break;
+        }
       }
     }
 
