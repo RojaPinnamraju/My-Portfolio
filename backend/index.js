@@ -56,15 +56,27 @@ async function fetchPageContent(url, retries = 3) {
   
   let browser;
   try {
-    // Launch browser with appropriate options
+    // Launch browser with appropriate options for Render environment
     const launchOptions = {
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath,
-      headless: chromium.headless,
-      ignoreHTTPSErrors: true,
+      args: [
+        ...chromium.args,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu',
+        '--window-size=1280x800'
+      ],
+      defaultViewport: {
+        width: 1280,
+        height: 800
+      },
+      executablePath: process.env.CHROME_BIN || await chromium.executablePath,
+      headless: true,
+      ignoreHTTPSErrors: true
     };
 
+    console.log('Launching browser with options:', launchOptions);
     browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
 
