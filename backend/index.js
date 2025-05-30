@@ -433,11 +433,17 @@ async function fetchWebsiteContent() {
   console.log('Fetching website content...');
   let browser;
   try {
-    browser = await puppeteer.launch({
+    // Configure Puppeteer based on environment
+    const launchOptions = {
       headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+      args: chromium.args,
+      executablePath: process.env.NODE_ENV === 'production' 
+        ? await chromium.executablePath()
+        : undefined,
+      ignoreHTTPSErrors: true
+    };
 
+    browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
     
     // Set a longer timeout
