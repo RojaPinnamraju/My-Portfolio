@@ -108,16 +108,16 @@ async function fetchPageContent(url, retries = 3) {
         '--disable-site-isolation-trials'
       ],
       headless: 'new',
-      timeout: 10000 // Reduced from 15000 to 10000
+      timeout: 15000 // Increased timeout
     };
 
     console.log('Launching browser with options:', JSON.stringify(launchOptions, null, 2));
     browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
 
-    // Set shorter timeouts for faster response
-    page.setDefaultNavigationTimeout(8000); // Reduced from 12000
-    page.setDefaultTimeout(8000); // Reduced from 12000
+    // Set longer timeouts for better content loading
+    page.setDefaultNavigationTimeout(15000);
+    page.setDefaultTimeout(15000);
 
     // Enable request interception for debugging
     await page.setRequestInterception(true);
@@ -139,23 +139,28 @@ async function fetchPageContent(url, retries = 3) {
     console.log('Navigating to page...');
     await page.goto(url, { 
       waitUntil: ['domcontentloaded', 'networkidle0'],
-      timeout: 8000 // Reduced from 12000
+      timeout: 15000
     });
 
-    // Wait for React to hydrate with a more lenient check
+    // Wait for React to hydrate with a more specific check
     console.log('Waiting for React to hydrate...');
     try {
       await page.waitForFunction(() => {
         const root = document.querySelector('#root');
-        return root && root.textContent.trim().length > 0;
-      }, { timeout: 8000 }); // Reduced from 12000
+        const skills = document.querySelectorAll('.skill');
+        const experiences = document.querySelectorAll('.experience');
+        const projects = document.querySelectorAll('.project');
+        return root && 
+               root.textContent.trim().length > 0 && 
+               (skills.length > 0 || experiences.length > 0 || projects.length > 0);
+      }, { timeout: 15000 });
     } catch (error) {
       console.log('Hydration check timed out, proceeding with available content');
     }
 
     // Wait for any dynamic content
     console.log('Waiting for dynamic content...');
-    await page.waitForTimeout(1000); // Reduced from 2000
+    await page.waitForTimeout(2000);
     
     // Get the page content
     const html = await page.content();
@@ -223,7 +228,7 @@ async function fetchWebsiteContent() {
       // Extract skills
       const skills = [];
       const skillSet = new Set();
-      $('div.App').find('div.skill').each((i, el) => {
+      $('div.skill').each((i, el) => {
         const name = $(el).find('Text').first().text().trim();
         const level = parseInt($(el).find('Progress').attr('value') || '0');
         if (name && !skillSet.has(name)) {
@@ -239,7 +244,7 @@ async function fetchWebsiteContent() {
       // Extract experience
       const experiences = [];
       const experienceSet = new Set();
-      $('div.App').find('div.experience').each((i, el) => {
+      $('div.experience').each((i, el) => {
         const title = $(el).find('.title').text().trim();
         const company = $(el).find('.company').text().trim();
         const period = $(el).find('.period').text().trim();
@@ -264,7 +269,7 @@ async function fetchWebsiteContent() {
       // Extract education
       const education = [];
       const educationSet = new Set();
-      $('div.App').find('div.education').each((i, el) => {
+      $('div.education').each((i, el) => {
         const degree = $(el).find('.degree').text().trim();
         const school = $(el).find('.school').text().trim();
         const period = $(el).find('.period').text().trim();
@@ -288,7 +293,7 @@ async function fetchWebsiteContent() {
 
       // Extract projects
       const projects = {};
-      $('div.App').find('div.project').each((i, el) => {
+      $('div.project').each((i, el) => {
         const title = $(el).find('.name').text().trim();
         const description = $(el).find('.description').text().trim();
         const technologies = [];
@@ -315,7 +320,7 @@ async function fetchWebsiteContent() {
 
       // Extract areas of expertise
       const expertise = [];
-      $('div.App').find('div.Feature').each((i, el) => {
+      $('div.Feature').each((i, el) => {
         const title = $(el).find('Text').first().text().trim();
         const text = $(el).find('Text').last().text().trim();
         if (title && text) {
