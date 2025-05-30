@@ -2,10 +2,13 @@ const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
+const puppeteer = require('puppeteer');
+const chromium = require('@sparticuz/chromium');
 require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 3000;
+const portfolioUrl = process.env.PORTFOLIO_URL || 'http://localhost:5173';
 
 // Cache configuration
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -45,13 +48,13 @@ const extractSection = ($, sectionName) => {
   const section = $(`section[data-section="${sectionName}"]`);
   if (section.length > 0) {
     console.log(`Found section with data-section="${sectionName}"`);
-    const text = section.find('Text, p, div').text();
+    const text = section.find('Text, p, div, [class*="chakra-text"]').text();
     console.log(`Extracted text: ${text}`);
     return cleanText(text);
   }
 
   // Try to find by heading and following content
-  const heading = $(`h1, h2, h3, h4, h5, h6, [class*="heading"]`).filter((i, el) => {
+  const heading = $(`h1, h2, h3, h4, h5, h6, [class*="chakra-heading"]`).filter((i, el) => {
     return $(el).text().toLowerCase().includes(sectionName.toLowerCase());
   });
 
@@ -59,7 +62,7 @@ const extractSection = ($, sectionName) => {
     console.log(`Found heading: ${heading.text()}`);
     const content = [];
     let current = heading.next();
-    while (current.length > 0 && !current.is('h1, h2, h3, h4, h5, h6, [class*="heading"]')) {
+    while (current.length > 0 && !current.is('h1, h2, h3, h4, h5, h6, [class*="chakra-heading"]')) {
       content.push(cleanText(current.text()));
       current = current.next();
     }
@@ -72,7 +75,7 @@ const extractSection = ($, sectionName) => {
   const classSection = $(`[class*="${sectionName.toLowerCase()}"]`);
   if (classSection.length > 0) {
     console.log(`Found section with class containing "${sectionName}"`);
-    const text = classSection.find('Text, p, div').text();
+    const text = classSection.find('Text, p, div, [class*="chakra-text"]').text();
     console.log(`Extracted text from class: ${text}`);
     return cleanText(text);
   }
@@ -126,16 +129,16 @@ const extractExperience = ($) => {
   console.log('Attempting to extract experience');
   const experiences = [];
   
-  // Look for experience components
-  $('.experience, [class*="experience"], [class*="Experience"], [class*="chakra-stack"]').each((i, el) => {
-    const title = $(el).find('[class*="chakra-heading"], [class*="chakra-text"], Text').text();
-    const company = $(el).find('[class*="chakra-text"], [class*="company"], [class*="employer"]').text();
-    const period = $(el).find('[class*="chakra-text"], [class*="period"], [class*="date"]').text();
+  // Look for experience components with specific class names
+  $('.experience, [class*="experience"], [class*="Experience"]').each((i, el) => {
+    const title = $(el).find('.title, [class*="title"]').text();
+    const company = $(el).find('.company, [class*="company"]').text();
+    const period = $(el).find('.period, [class*="period"]').text();
     const description = [];
-    $(el).find('li, [class*="chakra-text"], [class*="description"], Text').each((j, item) => {
+    $(el).find('.description li, .description p, [class*="description"] li, [class*="description"] p').each((j, item) => {
       const text = $(item).text().trim();
-      if (text && !text.startsWith('•')) {
-        description.push(cleanText(text));
+      if (text) {
+        description.push(cleanText(text.replace(/^•\s*/, '')));  // Remove bullet points
       }
     });
     
@@ -154,15 +157,15 @@ const extractExperience = ($) => {
   if (experiences.length === 0) {
     const expSection = $('section[data-section="experience"]');
     if (expSection.length > 0) {
-      expSection.find('.experience, [class*="experience"], [class*="Experience"], [class*="chakra-stack"]').each((i, el) => {
-        const title = $(el).find('[class*="chakra-heading"], [class*="chakra-text"], Text').text();
-        const company = $(el).find('[class*="chakra-text"], [class*="company"], [class*="employer"]').text();
-        const period = $(el).find('[class*="chakra-text"], [class*="period"], [class*="date"]').text();
+      expSection.find('.experience, [class*="experience"], [class*="Experience"]').each((i, el) => {
+        const title = $(el).find('.title, [class*="title"]').text();
+        const company = $(el).find('.company, [class*="company"]').text();
+        const period = $(el).find('.period, [class*="period"]').text();
         const description = [];
-        $(el).find('li, [class*="chakra-text"], [class*="description"], Text').each((j, item) => {
+        $(el).find('.description li, .description p, [class*="description"] li, [class*="description"] p').each((j, item) => {
           const text = $(item).text().trim();
-          if (text && !text.startsWith('•')) {
-            description.push(cleanText(text));
+          if (text) {
+            description.push(cleanText(text.replace(/^•\s*/, '')));  // Remove bullet points
           }
         });
         
@@ -245,7 +248,7 @@ const extractEducation = ($) => {
   return education;
 };
 
-// Function to fetch page content with timeout and retry
+// Function to fetch page content with Puppeteer
 async function fetchPageContent(url, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -260,7 +263,9 @@ async function fetchPageContent(url, retries = 3) {
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.5',
           'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1'
+          'Upgrade-Insecure-Requests': '1',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         },
         timeout: 30000 // 30 second timeout
       });
@@ -273,36 +278,136 @@ async function fetchPageContent(url, retries = 3) {
 
       const html = await response.text();
       console.log('Content fetched successfully');
+      console.log('HTML length:', html.length);
+      console.log('First 500 characters of HTML:', html.substring(0, 500));
 
       // Load HTML into cheerio
       const $ = cheerio.load(html);
       
+      // Log all sections found
+      const sections = $('section[data-section]').map((i, el) => $(el).attr('data-section')).get();
+      console.log('Found sections:', sections);
+      
       // Extract content based on page type
-      if (url.includes('/about')) {
+      if (url.includes('/about') || url.includes('/#/about')) {
+        console.log('Processing about page...');
+        
+        // Extract about section
+        const aboutSection = $('section[data-section="about"]');
+        console.log('About section found:', aboutSection.length > 0);
+        const aboutText = aboutSection.find('Text, [class*="chakra-text"]').text();
+        console.log('About text:', aboutText);
+
+        // Extract experience
+        const experiences = await page.evaluate(() => {
+          const expSection = document.querySelector('section[data-section="experience"]');
+          if (!expSection) return [];
+
+          const items = [];
+          const experienceElements = expSection.querySelectorAll('.experience, [class*="experience"], [class*="chakra-stack"]');
+          
+          experienceElements.forEach(el => {
+            const title = el.querySelector('h2, [class*="chakra-heading"]')?.textContent.trim();
+            const company = el.querySelector('[class*="chakra-text"][color="brand.500"]')?.textContent.trim();
+            const period = el.querySelector('[class*="chakra-text"][font-size="sm"]')?.textContent.trim();
+            const description = Array.from(el.querySelectorAll('[class*="chakra-text"]'))
+              .map(item => item.textContent.trim())
+              .filter(text => text && !text.startsWith('•') && text !== title && text !== company && text !== period);
+
+            if (title && !items.some(item => item.title === title && item.company === company)) {
+              items.push({
+                title,
+                company: company || '',
+                period: period || '',
+                description: description || []
+              });
+            }
+          });
+
+          return items;
+        });
+        console.log('Experiences:', experiences);
+
+        // Extract education
+        const education = await page.evaluate(() => {
+          const eduSection = document.querySelector('section[data-section="education"]');
+          if (!eduSection) return [];
+
+          const items = [];
+          const educationElements = eduSection.querySelectorAll('.education, [class*="education"], [class*="chakra-stack"]');
+          
+          educationElements.forEach(el => {
+            const degree = el.querySelector('h2, [class*="chakra-heading"]')?.textContent.trim();
+            const school = el.querySelector('[class*="chakra-text"][color="brand.500"]')?.textContent.trim();
+            const period = el.querySelector('[class*="chakra-text"][font-size="sm"]')?.textContent.trim();
+            const details = Array.from(el.querySelectorAll('[class*="chakra-text"]'))
+              .map(item => item.textContent.trim())
+              .filter(text => text && !text.startsWith('•') && text !== degree && text !== school && text !== period);
+
+            if (degree && !items.some(item => item.degree === degree && item.school === school)) {
+              items.push({
+                degree,
+                school: school || '',
+                period: period || '',
+                details: details || []
+              });
+            }
+          });
+
+          return items;
+        });
+        console.log('Education:', education);
+
+        // Extract skills
+        const skills = await page.evaluate(() => {
+          const skillsSection = document.querySelector('section[data-section="skills"]');
+          if (!skillsSection) return [];
+
+          const items = [];
+          const skillElements = skillsSection.querySelectorAll('.skill, [class*="skill"], [class*="Skill"], [class*="chakra-stack"]');
+          
+          skillElements.forEach(el => {
+            const name = el.querySelector('[class*="chakra-text"][font-weight="medium"]')?.textContent.trim();
+            const level = el.querySelector('[class*="chakra-progress"]')?.getAttribute('value') || 0;
+
+            if (name && !items.some(item => item.name === name)) {
+              items.push({
+                name,
+                level: parseInt(level) || 0
+              });
+            }
+          });
+
+          return items;
+        });
+        console.log('Skills:', skills);
+
         const content = {
-          about: extractSection($, 'about'),
-          experience: extractExperience($),
-          education: extractEducation($),
-          skills: extractSkills($)
+          about: cleanText(aboutText),
+          experience: experiences,
+          education: education,
+          skills: skills
         };
         console.log('Extracted about page content:', content);
         return content;
-      } else if (url.includes('/projects')) {
+      } else if (url.includes('/projects') || url.includes('/#/projects')) {
+        console.log('Processing projects page...');
         const projects = {};
-        $('.project, [class*="project"]').each((i, el) => {
-          const title = $(el).find('.project-title, h3, h4, .title').text();
-          const description = $(el).find('.project-description, .description, [class*="description"]').text();
+        $('.project, [class*="project"], [class*="chakra-stack"]').each((i, el) => {
+          const title = $(el).find('[class*="chakra-heading"], [class*="chakra-text"][font-weight="600"]').text();
+          const description = $(el).find('[class*="chakra-text"]').text();
           if (title) {
             projects[cleanText(title)] = cleanText(description);
           }
         });
         console.log('Extracted projects:', projects);
         return projects;
-      } else if (url.includes('/contact')) {
+      } else if (url.includes('/contact') || url.includes('/#/contact')) {
+        console.log('Processing contact page...');
         const contact = {};
-        $('.contact-item, [class*="contact"]').each((i, el) => {
-          const type = $(el).find('.contact-type, .type, [class*="type"]').text();
-          const value = $(el).find('.contact-value, .value, [class*="value"]').text();
+        $('.contact-item, [class*="contact"], [class*="chakra-stack"]').each((i, el) => {
+          const type = $(el).find('[class*="chakra-text"][font-weight="600"]').text();
+          const value = $(el).find('[class*="chakra-text"]').text();
           if (type) {
             contact[cleanText(type)] = cleanText(value);
           }
@@ -325,62 +430,164 @@ async function fetchPageContent(url, retries = 3) {
 
 // Function to fetch website content with caching
 async function fetchWebsiteContent() {
-  // Check if we have valid cached content
-  if (contentCache && lastFetchTime && (Date.now() - lastFetchTime < CACHE_DURATION)) {
-    console.log('Returning cached content');
-    return contentCache;
-  }
-
-  console.log('Starting content fetch...');
-  const baseUrl = 'https://rojapinnamraju-portfolio.netlify.app';
-  console.log('Using base URL:', baseUrl);
-  
+  console.log('Fetching website content...');
+  let browser;
   try {
-    // Fetch about page content
-    console.log('Fetching about page content...');
-    const aboutContent = await fetchPageContent(`${baseUrl}/about`);
-    console.log('About page content:', aboutContent);
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
 
-    // Fetch projects page content
-    console.log('Fetching projects page content...');
-    const projectsContent = await fetchPageContent(`${baseUrl}/projects`);
-    console.log('Projects page content:', projectsContent);
+    const page = await browser.newPage();
+    
+    // Set a longer timeout
+    await page.setDefaultNavigationTimeout(30000);
+    
+    // Navigate to the main page
+    console.log(`Navigating to ${portfolioUrl}...`);
+    await page.goto(portfolioUrl, { 
+      waitUntil: 'networkidle0',
+      timeout: 30000 
+    });
 
-    // Fetch contact page content
-    console.log('Fetching contact page content...');
-    const contactContent = await fetchPageContent(`${baseUrl}/contact`);
-    console.log('Contact page content:', contactContent);
+    // Wait for React to load
+    console.log('Waiting for React to load...');
+    await page.waitForFunction(() => {
+      return document.querySelector('#root') !== null;
+    }, { timeout: 10000 });
 
-    const content = {
-      about: aboutContent?.about || 'No information available',
-      experience: aboutContent?.experience || [],
-      education: aboutContent?.education || [],
-      skills: aboutContent?.skills || [],
-      projects: projectsContent || {},
-      contact: contactContent || {}
-    };
+    // Add a small delay to ensure content is rendered
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Update cache
-    contentCache = content;
-    lastFetchTime = Date.now();
+    // Navigate to each section and extract content
+    const sections = ['about', 'projects', 'contact'];
+    const content = {};
 
-    console.log('Final combined content:', content);
+    for (const section of sections) {
+      console.log(`Navigating to ${section} section...`);
+      await page.goto(`${portfolioUrl}/#/${section}`, {
+        waitUntil: 'networkidle0',
+        timeout: 30000
+      });
+
+      // Wait for content to be rendered
+      await page.waitForSelector('section[data-section]', { timeout: 10000 });
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      console.log(`Extracting ${section} content...`);
+      const sectionContent = await page.evaluate((sectionName) => {
+        const getText = (selector) => {
+          const element = document.querySelector(selector);
+          return element ? element.textContent.trim() : null;
+        };
+
+        const getSectionContent = (sectionName) => {
+          const section = document.querySelector(`section[data-section="${sectionName}"]`);
+          return section ? section.textContent.trim() : null;
+        };
+
+        const getSkills = () => {
+          const skills = [];
+          document.querySelectorAll('.skill').forEach(skill => {
+            const name = skill.querySelector('.chakra-text')?.textContent.trim();
+            const level = skill.querySelector('.chakra-progress')?.getAttribute('value');
+            if (name) {
+              skills.push({ name, level: parseInt(level) || 0 });
+            }
+          });
+          return skills;
+        };
+
+        const getExperiences = () => {
+          const experiences = [];
+          document.querySelectorAll('.experience').forEach(exp => {
+            const title = exp.querySelector('.title')?.textContent.trim();
+            const company = exp.querySelector('.company')?.textContent.trim();
+            const period = exp.querySelector('.period')?.textContent.trim();
+            const description = Array.from(exp.querySelectorAll('.description .chakra-text'))
+              .map(el => el.textContent.trim())
+              .filter(text => text);
+            
+            if (title) {
+              experiences.push({ title, company, period, description });
+            }
+          });
+          return experiences;
+        };
+
+        const getEducation = () => {
+          const education = [];
+          document.querySelectorAll('.education').forEach(edu => {
+            const degree = edu.querySelector('.degree')?.textContent.trim();
+            const school = edu.querySelector('.school')?.textContent.trim();
+            const period = edu.querySelector('.period')?.textContent.trim();
+            const details = Array.from(edu.querySelectorAll('.details .chakra-text'))
+              .map(el => el.textContent.trim())
+              .filter(text => text);
+            
+            if (degree) {
+              education.push({ degree, school, period, details });
+            }
+          });
+          return education;
+        };
+
+        const getProjects = () => {
+          const projects = {};
+          document.querySelectorAll('[data-project]').forEach(project => {
+            const id = project.getAttribute('data-project');
+            const name = project.querySelector('.name')?.textContent.trim();
+            const description = project.querySelector('.description')?.textContent.trim();
+            const technologies = Array.from(project.querySelectorAll('.technology'))
+              .map(el => el.textContent.trim());
+            const links = Array.from(project.querySelectorAll('.link'))
+              .map(el => el.href);
+            
+            if (name) {
+              projects[id] = { name, description, technologies, links };
+            }
+          });
+          return projects;
+        };
+
+        const getContact = () => {
+          const contact = {};
+          document.querySelectorAll('[data-contact]').forEach(el => {
+            const type = el.getAttribute('data-contact');
+            contact[type] = el.textContent.trim();
+          });
+          return contact;
+        };
+
+        switch (sectionName) {
+          case 'about':
+            return {
+              about: getSectionContent('about'),
+              experience: getExperiences(),
+              education: getEducation(),
+              skills: getSkills()
+            };
+          case 'projects':
+            return { projects: getProjects() };
+          case 'contact':
+            return { contact: getContact() };
+          default:
+            return {};
+        }
+      }, section);
+
+      Object.assign(content, sectionContent);
+    }
+
+    console.log('Content extracted successfully');
+    await browser.close();
     return content;
   } catch (error) {
-    console.error('Error fetching content:', error);
-    // Return cached content if available, otherwise return default content
-    if (contentCache) {
-      console.log('Returning stale cached content due to error');
-      return contentCache;
+    console.error('Error fetching website content:', error);
+    if (browser) {
+      await browser.close();
     }
-    return {
-      about: 'No information available',
-      experience: [],
-      education: [],
-      skills: [],
-      projects: {},
-      contact: {}
-    };
+    throw error;
   }
 }
 
@@ -412,23 +619,30 @@ app.get('/health', (req, res) => {
 // API endpoint to fetch content
 app.get('/api/content', async (req, res) => {
   try {
-    console.log('Received request for content');
+    // Check if we have cached content that's still valid
+    if (contentCache && lastFetchTime && (Date.now() - lastFetchTime < CACHE_DURATION)) {
+      console.log('Returning cached content');
+      return res.json(contentCache);
+    }
+
+    console.log(`Fetching content from ${portfolioUrl}`);
     const content = await fetchWebsiteContent();
-    console.log('Sending response:', content);
+    
+    // Update cache
+    contentCache = content;
+    lastFetchTime = Date.now();
+    
     res.json(content);
   } catch (error) {
-    console.error('Error in /api/content endpoint:', error);
-    res.status(500).json({
-      error: 'Failed to fetch content',
-      message: error.message
-    });
+    console.error('Error fetching content:', error);
+    res.status(500).json({ error: 'Failed to fetch content' });
   }
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  res.status(500).json({
+  res.status(500).json({ 
     error: 'Internal Server Error',
     message: err.message
   });
@@ -448,6 +662,7 @@ app.use((req, res) => {
 // Start server
 const server = app.listen(port, () => {
   console.log(`Server running on port ${port}`);
+  console.log(`Fetching content from ${portfolioUrl}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Available endpoints:`);
   console.log(`- GET /`);

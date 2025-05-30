@@ -13,6 +13,7 @@
 [functions.chat]
   timeout = 30
   memory = 1024
+  environment = { GROQ_API_KEY = "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" }
 
 [[redirects]]
   from = "/*"
@@ -24,4 +25,5 @@
   port = 8888
   targetPort = 5173
   publish = "dist"
-  autoLaunch = true 
+  autoLaunch = true
+  framework = "vite" 

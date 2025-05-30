@@ -9,7 +9,7 @@ const groq = new Groq({
 // Function to fetch website content
 async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
-  const backendUrl = process.env.BACKEND_URL || 'https://my-portfolio-olw8.onrender.com';
+  const backendUrl = 'http://localhost:3000';  // Hardcode local development URL
   console.log('Using backend URL:', backendUrl);
   
   try {
@@ -20,15 +20,20 @@ async function fetchWebsiteContent() {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const content = await response.json();
-    console.log('Content fetched successfully:', content);
+    console.log('Content fetched successfully:', JSON.stringify(content, null, 2));
     return content;
   } catch (error) {
     console.error('Error fetching content:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
     return {
       about: 'No information available',
-      experience: 'No information available',
-      education: 'No information available',
-      skills: 'No information available',
+      experience: [],
+      education: [],
+      skills: [],
       projects: {},
       contact: {}
     };
@@ -36,28 +41,59 @@ async function fetchWebsiteContent() {
 }
 
 // Chat endpoint
-export const handler = async (event, context) => {
-  // Handle CORS
+export const handler = async function(event, context) {
+  // Enable CORS
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json'
+  };
+
+  // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
-      },
+      headers,
       body: ''
     };
   }
 
   try {
-    console.log('Received chat request');
+    console.log('Received request:', {
+      method: event.httpMethod,
+      path: event.path,
+      headers: event.headers
+    });
+
+    if (!event.body) {
+      console.error('No request body received');
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'No request body received' })
+      };
+    }
+
     const { message } = JSON.parse(event.body);
-    console.log('Message received:', message);
+    console.log('Received message:', message);
+
+    if (!message) {
+      console.error('No message in request body');
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'No message provided' })
+      };
+    }
 
     if (!process.env.GROQ_API_KEY) {
-      console.error('GROQ_API_KEY is not set');
-      throw new Error('GROQ_API_KEY environment variable is not set');
+      console.error('GROQ_API_KEY not found in environment variables');
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: 'API key not configured' })
+      };
     }
 
     console.log('Fetching website content...');
@@ -70,16 +106,27 @@ About Me:
 ${content.about}
 
 My Professional Experience:
-${content.experience}
+${content.experience.map(exp => `
+${exp.title} at ${exp.company} (${exp.period})
+${exp.description.map(desc => `- ${desc.replace(/^•\s*/, '')}`).join('\n')}
+`).join('\n')}
 
 My Education:
-${content.education}
+${content.education.map(edu => `
+${edu.degree} at ${edu.school} (${edu.period})
+${edu.details.map(detail => `- ${detail.replace(/^•\s*/, '')}`).join('\n')}
+`).join('\n')}
 
 My Technical Skills:
-${content.skills}
+${content.skills.map(skill => `- ${skill.name}`).join('\n')}
 
 My Projects:
-${Object.entries(content.projects).map(([name, desc]) => `${name}: ${desc}`).join('\n')}
+${Object.entries(content.projects).map(([id, project]) => `
+${project.name}:
+${project.description}
+Technologies: ${project.technologies.join(', ')}
+Links: ${project.links.join(', ')}
+`).join('\n')}
 
 My Contact Information:
 ${Object.entries(content.contact).map(([type, value]) => `${type}: ${value}`).join('\n')}
@@ -138,25 +185,39 @@ When responding:
 18. If you're unsure about any information, respond with: "I don't have that information in my portfolio."`;
 
     console.log('Creating chat completion...');
-    const completion = await groq.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: message }
-      ],
-      model: 'llama3-70b-8192',
-      temperature: 0.7,
-      max_tokens: 1024,
-    });
-    console.log('Chat completion created successfully');
+    try {
+      const completion = await groq.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: message }
+        ],
+        model: 'llama3-70b-8192',
+        temperature: 0.7,
+        max_tokens: 1024,
+      });
+      console.log('Chat completion created successfully');
+      console.log('Response:', completion.choices[0]?.message?.content);
 
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ response: completion.choices[0].message.content })
-    };
+      if (!completion.choices?.[0]?.message?.content) {
+        throw new Error('No response content from Groq API');
+      }
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ response: completion.choices[0].message.content })
+      };
+    } catch (groqError) {
+      console.error('Groq API Error:', groqError);
+      console.error('Error details:', {
+        name: groqError.name,
+        message: groqError.message,
+        code: groqError.code,
+        status: groqError.status
+      });
+      throw groqError;
+    }
+
   } catch (error) {
     console.error('Error in chat endpoint:', error);
     console.error('Error stack:', error.stack);
@@ -166,14 +227,22 @@ When responding:
       code: error.code,
       status: error.status
     });
+
+    // Check for specific error types
+    let errorMessage = 'Sorry, I encountered an error. Please try again.';
+    if (error.message.includes('GROQ_API_KEY')) {
+      errorMessage = 'API key is not configured. Please check your environment variables.';
+    } else if (error.message.includes('model')) {
+      errorMessage = 'The AI model is currently unavailable. Please try again later.';
+    } else if (error.message.includes('timeout')) {
+      errorMessage = 'The request timed out. Please try again.';
+    }
+
     return {
       statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify({ 
-        error: 'Sorry, I encountered an error. Please try again.',
+        error: errorMessage,
         details: error.message,
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       })

@@ -122,23 +122,57 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/.netlify/functions/chat', {
+      console.log('Sending message to chat function...');
+      const endpoint = 'http://localhost:8888/.netlify/functions/chat';
+      console.log('Using endpoint:', endpoint);
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({ message: input }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to get response');
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      // Check if response is empty
+      const text = await response.text();
+      console.log('Raw response:', text);
+
+      if (!text) {
+        throw new Error('Empty response from server');
       }
 
-      const data = await response.json();
+      // Try to parse the response as JSON
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error('Failed to parse response:', text);
+        throw new Error('Invalid response from server');
+      }
+
+      console.log('Response data:', data);
+
+      if (!response.ok) {
+        throw new Error(data.details || data.error || 'Failed to get response');
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
-    } catch (error) {
-      console.error('Error:', error);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
+    } catch (error: unknown) {
+      console.error('Error in chat:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `Error: ${errorMessage}`
+      }]);
     } finally {
       setIsLoading(false);
     }

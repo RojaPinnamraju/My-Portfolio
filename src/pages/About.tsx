@@ -88,6 +88,7 @@ const Skill = ({ name, level, icon }: SkillProps) => {
       whileInView={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.5 }}
       viewport={{ once: true }}
+      className="skill"
     >
       <Stack spacing={2}>
         <HStack>
@@ -114,12 +115,13 @@ const Experience = ({ title, company, period, description }: ExperienceProps) =>
       transition={{ duration: 0.5 }}
       viewport={{ once: true }}
       mb={6}
+      className="experience"
     >
       <Stack spacing={2}>
-        <Heading size="md">{title}</Heading>
-        <Text fontWeight="bold" color="brand.500">{company}</Text>
-        <Text color={useColorModeValue('gray.600', 'gray.400')} fontSize="sm">{period}</Text>
-        <VStack align="start" spacing={2}>
+        <Heading size="md" className="title">{title}</Heading>
+        <Text fontWeight="bold" color="brand.500" className="company">{company}</Text>
+        <Text color={useColorModeValue('gray.600', 'gray.400')} fontSize="sm" className="period">{period}</Text>
+        <VStack align="start" spacing={2} className="description">
           {description.map((item, index) => (
             <Text key={index} color={useColorModeValue('gray.600', 'gray.400')}>
               • {item}
@@ -139,12 +141,13 @@ const Education = ({ degree, school, period, details }: EducationProps) => {
       transition={{ duration: 0.5 }}
       viewport={{ once: true }}
       mb={6}
+      className="education"
     >
       <Stack spacing={2}>
-        <Heading size="md">{degree}</Heading>
-        <Text fontWeight="bold" color="brand.500">{school}</Text>
-        <Text color={useColorModeValue('gray.600', 'gray.400')} fontSize="sm">{period}</Text>
-        <VStack align="start" spacing={2}>
+        <Heading size="md" className="degree">{degree}</Heading>
+        <Text fontWeight="bold" color="brand.500" className="school">{school}</Text>
+        <Text color={useColorModeValue('gray.600', 'gray.400')} fontSize="sm" className="period">{period}</Text>
+        <VStack align="start" spacing={2} className="details">
           {details.map((item: string, index: number) => (
             <Text key={index} color={useColorModeValue('gray.600', 'gray.400')}>
               • {item}
