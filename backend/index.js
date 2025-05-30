@@ -70,26 +70,33 @@ async function fetchPageContent(url, retries = 3) {
         '--disable-dev-shm-usage',
         '--disable-accelerated-2d-canvas',
         '--disable-gpu',
-        '--window-size=1920x1080'
+        '--window-size=1920x1080',
+        '--disable-web-security',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--disable-site-isolation-trials'
       ],
-      headless: true
+      headless: 'new',
+      timeout: 30000
     };
 
     console.log('Launching browser with options:', launchOptions);
     browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
 
+    // Set a longer timeout for navigation
+    page.setDefaultNavigationTimeout(60000);
+    page.setDefaultTimeout(60000);
+
     // Enable request interception for debugging
     await page.setRequestInterception(true);
     page.on('request', request => {
-      console.log(`Request: ${request.method()} ${request.url()}`);
-      const headers = request.headers();
-      console.log('Request headers:', headers);
-      request.continue();
-    });
-    page.on('response', response => {
-      console.log(`Response: ${response.status()} ${response.url()}`);
-      console.log('Response headers:', response.headers());
+      const resourceType = request.resourceType();
+      // Block unnecessary resources to speed up loading
+      if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+        request.abort();
+      } else {
+        request.continue();
+      }
     });
 
     // Set viewport and user agent
@@ -100,38 +107,36 @@ async function fetchPageContent(url, retries = 3) {
     console.log('Navigating to page...');
     await page.goto(url, { 
       waitUntil: ['networkidle0', 'domcontentloaded'],
-      timeout: 30000 
+      timeout: 60000 
     });
 
-    // Wait for React to hydrate
+    // Wait for React to hydrate with a more specific check
     console.log('Waiting for React to hydrate...');
     await page.waitForFunction(() => {
-      return document.readyState === 'complete' && 
-             document.querySelector('#root')?.children?.length > 0;
-    }, { timeout: 10000 });
+      const root = document.querySelector('#root');
+      if (!root || !root.children.length) return false;
+      
+      const sections = [
+        'about',
+        'experience',
+        'education',
+        'skills',
+        'projects'
+      ];
+      
+      return sections.every(section => {
+        const element = document.querySelector(`section[data-section="${section}"]`);
+        return element && element.textContent.trim().length > 0;
+      });
+    }, { timeout: 30000 });
 
     // Wait for any dynamic content
     console.log('Waiting for dynamic content...');
-    await page.waitForTimeout(5000);
-
-    // Log the page state
-    console.log('Page state:', await page.evaluate(() => ({
-      readyState: document.readyState,
-      rootChildren: document.querySelector('#root')?.children?.length,
-      bodyContent: document.body.innerHTML.length,
-      scripts: document.scripts.length,
-      styles: document.styleSheets.length
-    })));
+    await page.waitForTimeout(2000);
 
     // Get the page content
     const html = await page.content();
     console.log('Content fetched successfully, length:', html.length);
-    console.log('Page URL:', await page.url());
-    console.log('Page title:', await page.title());
-
-    // Take a screenshot for debugging
-    await page.screenshot({ path: 'debug-screenshot.png' });
-    console.log('Screenshot saved for debugging');
 
     await browser.close();
     return html;
@@ -143,7 +148,7 @@ async function fetchPageContent(url, retries = 3) {
     
     if (retries > 1) {
       console.log(`Retrying... (${retries - 1} attempts remaining)`);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       return fetchPageContent(url, retries - 1);
     }
     throw new Error(`Failed to fetch content after 3 attempts: ${error.message}`);
@@ -170,39 +175,15 @@ async function fetchWebsiteContent() {
       scripts: $('script').length
     });
 
-    // Try different selectors for about section
-    let aboutText = '';
-    const aboutSelectors = [
-      'section[data-section="about"]',
-      '[class*="about"]',
-      '[class*="About"]',
-      '#about',
-      '.about',
-      'main',
-      'article',
-      '[role="main"]',
-      '#root',  // Add root element as a fallback
-      'body'    // Add body as a last resort
-    ];
-
-    for (const selector of aboutSelectors) {
-      const section = $(selector);
-      if (section.length > 0) {
-        aboutText = section.find('Text, [class*="chakra-text"], p, div, span').text();
-        console.log(`Found content using selector: ${selector}`);
-        if (aboutText.trim().length > 0) {
-          break;
-        }
-      }
-    }
-
+    // Extract about section
+    const aboutText = $('section[data-section="about"]').text().trim();
     console.log('About text extracted:', aboutText ? 'Yes' : 'No');
 
     // Extract skills
     const skills = [];
-    $('.skill, [class*="skill"], [class*="Skill"], [class*="chakra-stack"]').each((i, el) => {
-      const name = $(el).find('Text, [class*="chakra-text"], [class*="chakra-heading"]').text();
-      const level = $(el).find('progress, [class*="chakra-progress"]').attr('value') || 0;
+    $('section[data-section="skills"] .skill, section[data-section="skills"] [class*="skill"]').each((i, el) => {
+      const name = $(el).find('.name, [class*="name"]').text().trim();
+      const level = $(el).find('progress, [class*="progress"]').attr('value') || 0;
       if (name) {
         skills.push({
           name: cleanText(name),
@@ -214,12 +195,12 @@ async function fetchWebsiteContent() {
 
     // Extract experience
     const experiences = [];
-    $('[class*="experience"], [class*="Experience"], [class*="work"], [class*="Work"], [class*="job"], [class*="Job"]').each((i, el) => {
-      const title = $(el).find('[class*="chakra-heading"], [class*="title"], [class*="position"]').text();
-      const company = $(el).find('[class*="company"], [class*="organization"], [class*="employer"]').text();
-      const period = $(el).find('[class*="period"], [class*="date"], [class*="duration"]').text();
+    $('section[data-section="experience"] .experience').each((i, el) => {
+      const title = $(el).find('.title').text().trim();
+      const company = $(el).find('.company').text().trim();
+      const period = $(el).find('.period').text().trim();
       const description = [];
-      $(el).find('[class*="description"], [class*="details"], [class*="responsibilities"], li, p').each((j, item) => {
+      $(el).find('.description li, .description p').each((j, item) => {
         const text = $(item).text().trim();
         if (text) {
           description.push(cleanText(text.replace(/^•\s*/, '')));
@@ -239,12 +220,12 @@ async function fetchWebsiteContent() {
 
     // Extract education
     const education = [];
-    $('[class*="education"], [class*="Education"], [class*="academic"], [class*="Academic"], [class*="school"], [class*="School"]').each((i, el) => {
-      const degree = $(el).find('[class*="chakra-heading"], [class*="degree"], [class*="program"]').text();
-      const school = $(el).find('[class*="school"], [class*="institution"], [class*="university"]').text();
-      const period = $(el).find('[class*="period"], [class*="date"], [class*="duration"]').text();
+    $('section[data-section="education"] .education').each((i, el) => {
+      const degree = $(el).find('.degree').text().trim();
+      const school = $(el).find('.school').text().trim();
+      const period = $(el).find('.period').text().trim();
       const details = [];
-      $(el).find('[class*="details"], [class*="description"], [class*="achievements"], li, p').each((j, item) => {
+      $(el).find('.details li, .details p').each((j, item) => {
         const text = $(item).text().trim();
         if (text) {
           details.push(cleanText(text.replace(/^•\s*/, '')));
@@ -264,20 +245,40 @@ async function fetchWebsiteContent() {
 
     // Extract projects
     const projects = {};
-    $('[class*="project"], [class*="Project"], [class*="portfolio"], [class*="Portfolio"]').each((i, el) => {
-      const title = $(el).find('[class*="chakra-heading"], [class*="title"], [class*="name"]').text();
-      const description = $(el).find('[class*="description"], [class*="details"], [class*="summary"]').text();
+    $('section[data-section="projects"] [data-project]').each((i, el) => {
+      const title = $(el).find('[class*="title"]').text().trim();
+      const description = $(el).find('[class*="text"]').text().trim();
+      const technologies = [];
+      $(el).find('[class*="technologies"] li, [class*="tech"] li').each((j, item) => {
+        const tech = $(item).text().trim();
+        if (tech) {
+          technologies.push(cleanText(tech));
+        }
+      });
+      const links = [];
+      $(el).find('a').each((j, item) => {
+        const href = $(item).attr('href');
+        if (href) {
+          links.push(href);
+        }
+      });
+      
       if (title) {
-        projects[cleanText(title)] = cleanText(description);
+        projects[cleanText(title)] = {
+          name: cleanText(title),
+          description: cleanText(description),
+          technologies: technologies,
+          links: links
+        };
       }
     });
     console.log('Projects extracted:', Object.keys(projects).length);
 
     // Extract contact
     const contact = {};
-    $('[class*="contact"], [class*="Contact"], [class*="social"], [class*="Social"], [class*="connect"], [class*="Connect"]').each((i, el) => {
-      const type = $(el).find('[class*="chakra-heading"], [class*="label"], [class*="type"]').text();
-      const value = $(el).find('[class*="value"], [class*="link"], [class*="text"], a').text();
+    $('[class*="contact"], [class*="Contact"], [class*="social"], [class*="Social"]').each((i, el) => {
+      const type = $(el).find('[class*="label"], [class*="type"]').text().trim();
+      const value = $(el).find('a').attr('href') || $(el).find('[class*="value"], [class*="text"]').text().trim();
       if (type) {
         contact[cleanText(type)] = cleanText(value);
       }
@@ -329,8 +330,11 @@ app.get('/health', (req, res) => {
 // API endpoint to fetch content
 app.get('/api/content', async (req, res) => {
   try {
-    // Clear cache for debugging
-    clearCache();
+    // Check if we have valid cached content
+    if (contentCache && lastFetchTime && (Date.now() - lastFetchTime < CACHE_DURATION)) {
+      console.log('Returning cached content');
+      return res.json(contentCache);
+    }
 
     console.log(`Fetching content from ${portfolioUrl}`);
     const content = await fetchWebsiteContent();
@@ -347,6 +351,13 @@ app.get('/api/content', async (req, res) => {
       message: error.message,
       stack: error.stack
     });
+
+    // If we have cached content, return it even if expired
+    if (contentCache) {
+      console.log('Returning expired cached content due to error');
+      return res.json(contentCache);
+    }
+
     res.status(500).json({ 
       error: 'Failed to fetch content',
       details: error.message,

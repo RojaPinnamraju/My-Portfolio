@@ -18,14 +18,11 @@ async function fetchWebsiteContent() {
   });
   
   try {
-    // Add /api prefix to the URL
     const url = `${backendUrl}/api/content`;
     console.log('Making request to:', url);
-    console.log('Request headers:', {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'Origin': 'https://rojapinnamraju-portfolio.netlify.app'
-    });
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000); // 25 second timeout
 
     const response = await fetch(url, {
       method: 'GET',
@@ -33,11 +30,11 @@ async function fetchWebsiteContent() {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Origin': 'https://rojapinnamraju-portfolio.netlify.app'
-      }
+      },
+      signal: controller.signal
     });
     
-    console.log('Response status:', response.status);
-    console.log('Response headers:', response.headers);
+    clearTimeout(timeout);
     
     if (!response.ok) {
       console.error('Backend response not OK:', response.status, response.statusText);
@@ -58,6 +55,9 @@ async function fetchWebsiteContent() {
       stack: error.stack,
       code: error.code
     });
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out after 25 seconds');
+    }
     return {
       about: 'No information available',
       experience: [],
@@ -135,8 +135,20 @@ export const handler = async function(event, context) {
     }
 
     console.log('Fetching website content...');
-    const content = await fetchWebsiteContent();
-    console.log('Content fetched successfully');
+    let content;
+    try {
+      content = await fetchWebsiteContent();
+    } catch (error) {
+      console.error('Error fetching content:', error);
+      // Return a default response if content fetch fails
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          response: "I'm having trouble accessing my portfolio information right now. Please try again in a few moments."
+        })
+      };
+    }
 
     const systemPrompt = `You are Roja Pinnamraju, a Software Engineer and AI enthusiast. You should respond to questions in first person, as if you are speaking directly to the user. Here is your information:
 
