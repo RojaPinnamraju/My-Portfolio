@@ -21,8 +21,9 @@ let lastFetchTime = null;
 const corsOptions = {
   origin: ['https://my-portfolio-olw8.netlify.app', 'http://localhost:5173', 'http://localhost:8888'],
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
+  credentials: true,
+  maxAge: 86400 // 24 hours
 };
 
 // Middleware
@@ -33,6 +34,8 @@ app.use(express.json());
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   console.log('Request headers:', req.headers);
+  console.log('Request origin:', req.headers.origin);
+  console.log('Request host:', req.headers.host);
   next();
 });
 
@@ -268,7 +271,8 @@ async function fetchPageContent(url, retries = 3) {
           'Upgrade-Insecure-Requests': '1',
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache',
-          'Origin': 'https://my-portfolio-olw8.netlify.app'
+          'Origin': 'https://my-portfolio-olw8.netlify.app',
+          'Referer': 'https://my-portfolio-olw8.netlify.app/'
         },
         timeout: 30000 // 30 second timeout
       });
@@ -278,7 +282,9 @@ async function fetchPageContent(url, retries = 3) {
       if (!response.ok) {
         console.error(`HTTP error! status: ${response.status}`);
         console.error('Response headers:', response.headers);
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Error response body:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
       }
 
       const html = await response.text();
@@ -646,7 +652,16 @@ app.get('/api/content', async (req, res) => {
     res.json(content);
   } catch (error) {
     console.error('Error fetching content:', error);
-    res.status(500).json({ error: 'Failed to fetch content' });
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      error: 'Failed to fetch content',
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
