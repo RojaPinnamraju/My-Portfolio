@@ -2,7 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
-const puppeteer = require('puppeteer');
+const chromium = require('chrome-aws-lambda');
+const puppeteer = require('puppeteer-core');
 require('dotenv').config();
 
 const app = express();
@@ -57,19 +58,10 @@ async function fetchPageContent(url, retries = 3) {
   try {
     // Launch browser with appropriate options for Render environment
     const launchOptions = {
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--window-size=1280x800'
-      ],
-      defaultViewport: {
-        width: 1280,
-        height: 800
-      },
-      headless: 'new',
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath,
+      headless: chromium.headless,
       ignoreHTTPSErrors: true
     };
 

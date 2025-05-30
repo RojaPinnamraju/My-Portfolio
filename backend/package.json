@@ -6,18 +6,19 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "build": "npm install && npm install puppeteer@latest"
+    "build": "npm install && npm install puppeteer-core@latest chrome-aws-lambda@latest"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "cheerio": "^1.0.0-rc.12",
+    "chrome-aws-lambda": "^10.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "node-fetch": "^2.6.9",
-    "puppeteer": "^21.0.0"
+    "puppeteer-core": "^21.0.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
