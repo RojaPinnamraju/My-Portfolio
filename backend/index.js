@@ -9,7 +9,13 @@ const app = express();
 const port = process.env.PORT || 3000;
 const portfolioUrl = process.env.NODE_ENV === 'production' 
   ? 'https://rojapinnamraju-portfolio.netlify.app'
-  : (process.env.PORTFOLIO_URL || 'http://localhost:5173');
+  : 'http://localhost:5173';
+
+console.log('Configuration:', {
+  port,
+  portfolioUrl,
+  nodeEnv: process.env.NODE_ENV || 'development'
+});
 
 // Cache configuration
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -22,6 +28,7 @@ const corsOptions = {
     'https://rojapinnamraju-portfolio.netlify.app',
     'http://localhost:5173',
     'http://localhost:8888',
+    'http://localhost:3000',
     'https://rojapinnamraju-portfolio.netlify.app/.netlify/functions/chat'
   ],
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -36,17 +43,38 @@ app.use(express.json());
 
 // Add request logging middleware
 app.use((req, res, next) => {
+  console.log('\n=== New Request ===');
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  console.log('Request headers:', req.headers);
+  console.log('Request headers:', JSON.stringify(req.headers, null, 2));
   console.log('Request origin:', req.headers.origin);
   console.log('Request host:', req.headers.host);
+  console.log('Request body:', req.body);
+  console.log('==================\n');
   next();
 });
 
 // Function to clean text content
 const cleanText = (text) => {
   if (!text) return null;
+  // Remove extra whitespace and normalize line endings
   return text.replace(/\s+/g, ' ').trim();
+};
+
+// Function to extract unique content
+const extractUniqueContent = (text) => {
+  if (!text) return [];
+  // Split by common delimiters and clean up
+  const parts = text.split(/[|•]/).map(part => cleanText(part)).filter(Boolean);
+  // Remove duplicates while preserving order
+  return [...new Set(parts)];
+};
+
+// Function to extract main content
+const extractMainContent = (text) => {
+  if (!text) return null;
+  // Find the main description text
+  const match = text.match(/I am a passionate software engineer.*?technologies\./);
+  return match ? cleanText(match[0]) : null;
 };
 
 // Function to clear cache
@@ -58,7 +86,9 @@ function clearCache() {
 
 // Function to fetch page content using Puppeteer
 async function fetchPageContent(url, retries = 3) {
-  console.log(`Fetching content from ${url} (attempt ${4 - retries}/3)`);
+  console.log(`\n=== Fetching Content ===`);
+  console.log(`URL: ${url}`);
+  console.log(`Attempt: ${4 - retries}/3`);
   
   let browser;
   try {
@@ -79,7 +109,7 @@ async function fetchPageContent(url, retries = 3) {
       timeout: 15000 // 15 second launch timeout
     };
 
-    console.log('Launching browser with options:', launchOptions);
+    console.log('Launching browser with options:', JSON.stringify(launchOptions, null, 2));
     browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
 
@@ -91,8 +121,10 @@ async function fetchPageContent(url, retries = 3) {
     await page.setRequestInterception(true);
     page.on('request', request => {
       const resourceType = request.resourceType();
+      console.log(`Intercepted request: ${request.url()} (${resourceType})`);
       // Block unnecessary resources to speed up loading
       if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+        console.log(`Blocking resource: ${resourceType}`);
         request.abort();
       } else {
         request.continue();
@@ -106,29 +138,61 @@ async function fetchPageContent(url, retries = 3) {
     // Navigate to the page and wait for network idle
     console.log('Navigating to page...');
     await page.goto(url, { 
-      waitUntil: ['domcontentloaded'],
+      waitUntil: ['domcontentloaded', 'networkidle0'],
       timeout: 12000 
     });
 
-    // Wait for React to hydrate with a more specific check
-    console.log('Waiting for React to hydrate...');
+    // Wait for Vite's client to load
+    console.log('Waiting for Vite client...');
     await page.waitForFunction(() => {
-      const root = document.querySelector('#root');
-      if (!root || !root.children.length) return false;
-      
-      const sections = [
-        'about',
-        'experience',
-        'education',
-        'skills',
-        'projects'
-      ];
-      
-      return sections.some(section => {
-        const element = document.querySelector(`section[data-section="${section}"]`);
-        return element && element.textContent.trim().length > 0;
-      });
-    }, { timeout: 12000 });
+      return window.$RefreshReg$ !== undefined;
+    }, { timeout: 5000 }).catch(() => {
+      console.log('Vite client not found, continuing anyway');
+    });
+
+    // Wait for React to hydrate with a more lenient check
+    console.log('Waiting for React to hydrate...');
+    try {
+      await page.waitForFunction(() => {
+        const root = document.querySelector('#root');
+        if (!root || !root.children.length) {
+          console.log('Root element not found or empty');
+          return false;
+        }
+        
+        // Check if any content is loaded
+        const hasContent = root.textContent.trim().length > 0;
+        if (hasContent) {
+          console.log('Found content in root element');
+          return true;
+        }
+        
+        // Check for specific sections as fallback
+        const sections = [
+          'about',
+          'experience',
+          'education',
+          'skills',
+          'projects'
+        ];
+        
+        const foundSection = sections.some(section => {
+          const element = document.querySelector(`section[data-section="${section}"]`);
+          const hasContent = element && element.textContent.trim().length > 0;
+          if (hasContent) {
+            console.log(`Found content in section: ${section}`);
+          }
+          return hasContent;
+        });
+
+        if (!foundSection) {
+          console.log('No sections found with content');
+        }
+        return foundSection;
+      }, { timeout: 12000 });
+    } catch (error) {
+      console.log('Hydration check timed out, proceeding with available content');
+    }
 
     // Wait for any dynamic content
     console.log('Waiting for dynamic content...');
@@ -137,6 +201,7 @@ async function fetchPageContent(url, retries = 3) {
     // Get the page content
     const html = await page.content();
     console.log('Content fetched successfully, length:', html.length);
+    console.log('=== Content Fetch Complete ===\n');
 
     await browser.close();
     return html;
@@ -177,18 +242,19 @@ async function fetchWebsiteContent() {
     });
 
     // Extract about section
-    const aboutText = $('section[data-section="about"]').text().trim();
+    const aboutText = extractMainContent($('div.App').text());
     console.log('About text extracted:', aboutText ? 'Yes' : 'No');
 
     // Extract skills
     const skills = [];
-    $('section[data-section="skills"] .skill, section[data-section="skills"] [class*="skill"]').each((i, el) => {
-      const name = $(el).find('.name, [class*="name"]').text().trim();
-      const level = $(el).find('progress, [class*="progress"]').attr('value') || 0;
-      if (name) {
+    const skillSet = new Set();
+    $('div.App').find('div').each((i, el) => {
+      const text = $(el).text().trim();
+      if (text && ['Clean Code', 'Web Development', 'AI/ML'].includes(text) && !skillSet.has(text)) {
+        skillSet.add(text);
         skills.push({
-          name: cleanText(name),
-          level: parseInt(level) || 0
+          name: cleanText(text),
+          level: 90 // Default level for main skills
         });
       }
     });
@@ -196,98 +262,78 @@ async function fetchWebsiteContent() {
 
     // Extract experience
     const experiences = [];
-    $('section[data-section="experience"] .experience').each((i, el) => {
-      const title = $(el).find('.title').text().trim();
-      const company = $(el).find('.company').text().trim();
-      const period = $(el).find('.period').text().trim();
-      const description = [];
-      $(el).find('.description li, .description p').each((j, item) => {
-        const text = $(item).text().trim();
-        if (text) {
-          description.push(cleanText(text.replace(/^•\s*/, '')));
+    const experienceSet = new Set();
+    $('div.App').find('div').each((i, el) => {
+      const text = $(el).text().trim();
+      if (text && text.includes('Software Engineer') && !experienceSet.has(text)) {
+        experienceSet.add(text);
+        const description = extractUniqueContent(text);
+        if (description.length > 0) {
+          experiences.push({
+            title: 'Software Engineer',
+            company: 'Current',
+            period: 'Present',
+            description: [extractMainContent(text)].filter(Boolean)
+          });
         }
-      });
-      
-      if (title) {
-        experiences.push({
-          title: cleanText(title),
-          company: cleanText(company),
-          period: cleanText(period),
-          description: description
-        });
       }
     });
     console.log('Experiences extracted:', experiences.length);
 
     // Extract education
     const education = [];
-    $('section[data-section="education"] .education').each((i, el) => {
-      const degree = $(el).find('.degree').text().trim();
-      const school = $(el).find('.school').text().trim();
-      const period = $(el).find('.period').text().trim();
-      const details = [];
-      $(el).find('.details li, .details p').each((j, item) => {
-        const text = $(item).text().trim();
-        if (text) {
-          details.push(cleanText(text.replace(/^•\s*/, '')));
+    const educationSet = new Set();
+    $('div.App').find('div').each((i, el) => {
+      const text = $(el).text().trim();
+      if (text && text.includes('AI Enthusiast') && !educationSet.has(text)) {
+        educationSet.add(text);
+        const details = extractUniqueContent(text);
+        if (details.length > 0) {
+          education.push({
+            degree: 'Software Engineering',
+            school: 'Self-taught',
+            period: 'Ongoing',
+            details: [extractMainContent(text)].filter(Boolean)
+          });
         }
-      });
-      
-      if (degree) {
-        education.push({
-          degree: cleanText(degree),
-          school: cleanText(school),
-          period: cleanText(period),
-          details: details
-        });
       }
     });
     console.log('Education extracted:', education.length);
 
     // Extract projects
     const projects = {};
-    $('section[data-section="projects"] [data-project]').each((i, el) => {
-      const title = $(el).find('[class*="title"]').text().trim();
-      const description = $(el).find('[class*="text"]').text().trim();
-      const technologies = [];
-      $(el).find('[class*="technologies"] li, [class*="tech"] li').each((j, item) => {
-        const tech = $(item).text().trim();
-        if (tech) {
-          technologies.push(cleanText(tech));
+    $('div.App').find('a').each((i, el) => {
+      const href = $(el).attr('href');
+      if (href && href.includes('github.com')) {
+        const title = $(el).text().trim() || 'GitHub Project';
+        if (!projects[title]) {
+          projects[title] = {
+            name: title,
+            description: 'GitHub Repository',
+            technologies: ['Various'],
+            links: [href]
+          };
         }
-      });
-      const links = [];
-      $(el).find('a').each((j, item) => {
-        const href = $(item).attr('href');
-        if (href) {
-          links.push(href);
-        }
-      });
-      
-      if (title) {
-        projects[cleanText(title)] = {
-          name: cleanText(title),
-          description: cleanText(description),
-          technologies: technologies,
-          links: links
-        };
       }
     });
     console.log('Projects extracted:', Object.keys(projects).length);
 
     // Extract contact
     const contact = {};
-    $('[class*="contact"], [class*="Contact"], [class*="social"], [class*="Social"]').each((i, el) => {
-      const type = $(el).find('[class*="label"], [class*="type"]').text().trim();
-      const value = $(el).find('a').attr('href') || $(el).find('[class*="value"], [class*="text"]').text().trim();
-      if (type) {
-        contact[cleanText(type)] = cleanText(value);
+    $('div.App').find('a').each((i, el) => {
+      const href = $(el).attr('href');
+      if (href) {
+        if (href.includes('github.com')) {
+          contact['GitHub'] = href;
+        } else if (href.includes('linkedin.com')) {
+          contact['LinkedIn'] = href;
+        }
       }
     });
     console.log('Contact info extracted:', Object.keys(contact).length);
 
     const content = {
-      about: cleanText(aboutText),
+      about: aboutText,
       experience: experiences,
       education: education,
       skills: skills,
