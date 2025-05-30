@@ -103,13 +103,25 @@ async function fetchPageContent(url, retries = 3) {
       timeout: 30000 
     });
 
-    // Wait for content to be loaded
-    console.log('Waiting for content to load...');
-    await page.waitForSelector('body', { timeout: 5000 });
+    // Wait for React to hydrate
+    console.log('Waiting for React to hydrate...');
+    await page.waitForFunction(() => {
+      return document.readyState === 'complete' && 
+             document.querySelector('#root')?.children?.length > 0;
+    }, { timeout: 10000 });
 
     // Wait for any dynamic content
     console.log('Waiting for dynamic content...');
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(5000);
+
+    // Log the page state
+    console.log('Page state:', await page.evaluate(() => ({
+      readyState: document.readyState,
+      rootChildren: document.querySelector('#root')?.children?.length,
+      bodyContent: document.body.innerHTML.length,
+      scripts: document.scripts.length,
+      styles: document.styleSheets.length
+    })));
 
     // Get the page content
     const html = await page.content();
