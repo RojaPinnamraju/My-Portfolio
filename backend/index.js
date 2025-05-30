@@ -18,9 +18,11 @@ console.log('Configuration:', {
 });
 
 // Cache configuration
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 let contentCache = null;
 let lastFetchTime = null;
+let isFetching = false;
+let fetchPromise = null;
 
 // CORS configuration
 const corsOptions = {
@@ -224,129 +226,154 @@ async function fetchPageContent(url, retries = 3) {
 // Function to fetch website content with caching
 async function fetchWebsiteContent() {
   console.log('Starting website content fetch...');
-  const url = portfolioUrl;  // Use base URL without any path
-  console.log('Fetching from URL:', url);
-
-  try {
-    const html = await fetchPageContent(url);
-    const $ = cheerio.load(html);
-    
-    // Log the HTML structure for debugging
-    console.log('HTML structure:', {
-      title: $('title').text(),
-      bodyLength: $('body').text().length,
-      sections: $('section').length,
-      metaDescription: $('meta[name="description"]').attr('content'),
-      links: $('a').length,
-      scripts: $('script').length
-    });
-
-    // Extract about section
-    const aboutText = extractMainContent($('div.App').text());
-    console.log('About text extracted:', aboutText ? 'Yes' : 'No');
-
-    // Extract skills
-    const skills = [];
-    const skillSet = new Set();
-    $('div.App').find('div').each((i, el) => {
-      const text = $(el).text().trim();
-      if (text && ['Clean Code', 'Web Development', 'AI/ML'].includes(text) && !skillSet.has(text)) {
-        skillSet.add(text);
-        skills.push({
-          name: cleanText(text),
-          level: 90 // Default level for main skills
-        });
-      }
-    });
-    console.log('Skills extracted:', skills.length);
-
-    // Extract experience
-    const experiences = [];
-    const experienceSet = new Set();
-    $('div.App').find('div').each((i, el) => {
-      const text = $(el).text().trim();
-      if (text && text.includes('Software Engineer') && !experienceSet.has(text)) {
-        experienceSet.add(text);
-        const description = extractUniqueContent(text);
-        if (description.length > 0) {
-          experiences.push({
-            title: 'Software Engineer',
-            company: 'Current',
-            period: 'Present',
-            description: [extractMainContent(text)].filter(Boolean)
-          });
-        }
-      }
-    });
-    console.log('Experiences extracted:', experiences.length);
-
-    // Extract education
-    const education = [];
-    const educationSet = new Set();
-    $('div.App').find('div').each((i, el) => {
-      const text = $(el).text().trim();
-      if (text && text.includes('AI Enthusiast') && !educationSet.has(text)) {
-        educationSet.add(text);
-        const details = extractUniqueContent(text);
-        if (details.length > 0) {
-          education.push({
-            degree: 'Software Engineering',
-            school: 'Self-taught',
-            period: 'Ongoing',
-            details: [extractMainContent(text)].filter(Boolean)
-          });
-        }
-      }
-    });
-    console.log('Education extracted:', education.length);
-
-    // Extract projects
-    const projects = {};
-    $('div.App').find('a').each((i, el) => {
-      const href = $(el).attr('href');
-      if (href && href.includes('github.com')) {
-        const title = $(el).text().trim() || 'GitHub Project';
-        if (!projects[title]) {
-          projects[title] = {
-            name: title,
-            description: 'GitHub Repository',
-            technologies: ['Various'],
-            links: [href]
-          };
-        }
-      }
-    });
-    console.log('Projects extracted:', Object.keys(projects).length);
-
-    // Extract contact
-    const contact = {};
-    $('div.App').find('a').each((i, el) => {
-      const href = $(el).attr('href');
-      if (href) {
-        if (href.includes('github.com')) {
-          contact['GitHub'] = href;
-        } else if (href.includes('linkedin.com')) {
-          contact['LinkedIn'] = href;
-        }
-      }
-    });
-    console.log('Contact info extracted:', Object.keys(contact).length);
-
-    const content = {
-      about: aboutText,
-      experience: experiences,
-      education: education,
-      skills: skills,
-      projects: projects,
-      contact: contact
-    };
-
-    console.log('Content extraction completed successfully');
-    return content;
-  } catch (error) {
-    console.error('Error in fetchWebsiteContent:', error);
-    throw new Error(`Failed to fetch content: ${error.message}`);
+  
+  // If we have valid cached content, return it immediately
+  if (contentCache && lastFetchTime && (Date.now() - lastFetchTime < CACHE_DURATION)) {
+    console.log('Returning cached content');
+    return contentCache;
   }
+
+  // If we're already fetching, return the existing promise
+  if (isFetching && fetchPromise) {
+    console.log('Fetch already in progress, returning existing promise');
+    return fetchPromise;
+  }
+
+  // Start a new fetch
+  isFetching = true;
+  fetchPromise = (async () => {
+    try {
+      const url = portfolioUrl;
+      console.log('Fetching from URL:', url);
+
+      const html = await fetchPageContent(url);
+      const $ = cheerio.load(html);
+      
+      // Log the HTML structure for debugging
+      console.log('HTML structure:', {
+        title: $('title').text(),
+        bodyLength: $('body').text().length,
+        sections: $('section').length,
+        metaDescription: $('meta[name="description"]').attr('content'),
+        links: $('a').length,
+        scripts: $('script').length
+      });
+
+      // Extract about section
+      const aboutText = extractMainContent($('div.App').text());
+      console.log('About text extracted:', aboutText ? 'Yes' : 'No');
+
+      // Extract skills
+      const skills = [];
+      const skillSet = new Set();
+      $('div.App').find('div').each((i, el) => {
+        const text = $(el).text().trim();
+        if (text && ['Clean Code', 'Web Development', 'AI/ML'].includes(text) && !skillSet.has(text)) {
+          skillSet.add(text);
+          skills.push({
+            name: cleanText(text),
+            level: 90 // Default level for main skills
+          });
+        }
+      });
+      console.log('Skills extracted:', skills.length);
+
+      // Extract experience
+      const experiences = [];
+      const experienceSet = new Set();
+      $('div.App').find('div').each((i, el) => {
+        const text = $(el).text().trim();
+        if (text && text.includes('Software Engineer') && !experienceSet.has(text)) {
+          experienceSet.add(text);
+          const description = extractUniqueContent(text);
+          if (description.length > 0) {
+            experiences.push({
+              title: 'Software Engineer',
+              company: 'Current',
+              period: 'Present',
+              description: [extractMainContent(text)].filter(Boolean)
+            });
+          }
+        }
+      });
+      console.log('Experiences extracted:', experiences.length);
+
+      // Extract education
+      const education = [];
+      const educationSet = new Set();
+      $('div.App').find('div').each((i, el) => {
+        const text = $(el).text().trim();
+        if (text && text.includes('AI Enthusiast') && !educationSet.has(text)) {
+          educationSet.add(text);
+          const details = extractUniqueContent(text);
+          if (details.length > 0) {
+            education.push({
+              degree: 'Software Engineering',
+              school: 'Self-taught',
+              period: 'Ongoing',
+              details: [extractMainContent(text)].filter(Boolean)
+            });
+          }
+        }
+      });
+      console.log('Education extracted:', education.length);
+
+      // Extract projects
+      const projects = {};
+      $('div.App').find('a').each((i, el) => {
+        const href = $(el).attr('href');
+        if (href && href.includes('github.com')) {
+          const title = $(el).text().trim() || 'GitHub Project';
+          if (!projects[title]) {
+            projects[title] = {
+              name: title,
+              description: 'GitHub Repository',
+              technologies: ['Various'],
+              links: [href]
+            };
+          }
+        }
+      });
+      console.log('Projects extracted:', Object.keys(projects).length);
+
+      // Extract contact
+      const contact = {};
+      $('div.App').find('a').each((i, el) => {
+        const href = $(el).attr('href');
+        if (href) {
+          if (href.includes('github.com')) {
+            contact['GitHub'] = href;
+          } else if (href.includes('linkedin.com')) {
+            contact['LinkedIn'] = href;
+          }
+        }
+      });
+      console.log('Contact info extracted:', Object.keys(contact).length);
+
+      const content = {
+        about: aboutText,
+        experience: experiences,
+        education: education,
+        skills: skills,
+        projects: projects,
+        contact: contact
+      };
+
+      // Update cache
+      contentCache = content;
+      lastFetchTime = Date.now();
+      console.log('Content extraction completed successfully');
+      return content;
+    } catch (error) {
+      console.error('Error in fetchWebsiteContent:', error);
+      throw new Error(`Failed to fetch content: ${error.message}`);
+    } finally {
+      isFetching = false;
+      fetchPromise = null;
+    }
+  })();
+
+  return fetchPromise;
 }
 
 // Root endpoint
