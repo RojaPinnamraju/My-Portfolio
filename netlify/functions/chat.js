@@ -21,9 +21,7 @@ async function fetchWebsiteContent() {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Origin': 'https://my-portfolio-olw8.netlify.app'
-      },
-      mode: 'cors',
-      credentials: 'include'
+      }
     });
     
     if (!response.ok) {
