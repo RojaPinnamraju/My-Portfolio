@@ -24,7 +24,7 @@ async function fetchWebsiteContent() {
     console.log('Request headers:', {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
-      'Origin': 'https://my-portfolio-olw8.netlify.app'
+      'Origin': 'https://rojapinnamraju-portfolio.netlify.app'
     });
 
     const response = await fetch(url, {
@@ -32,7 +32,7 @@ async function fetchWebsiteContent() {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Origin': 'https://my-portfolio-olw8.netlify.app'
+        'Origin': 'https://rojapinnamraju-portfolio.netlify.app'
       }
     });
     
@@ -81,13 +81,11 @@ export const handler = async function(event, context) {
 
   // Enable CORS
   const headers = {
-    'Access-Control-Allow-Origin': process.env.NODE_ENV === 'production' 
-      ? 'https://my-portfolio-olw8.netlify.app'
-      : '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Origin, Accept',
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': 'https://rojapinnamraju-portfolio.netlify.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Credentials': 'true',
-    'Content-Type': 'application/json'
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Credentials': 'true'
   };
 
   // Handle preflight requests
