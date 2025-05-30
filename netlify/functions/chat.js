@@ -10,6 +10,8 @@ const groq = new Groq({
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 let contentCache = null;
 let lastFetchTime = null;
+let isFetching = false;
+let fetchPromise = null;
 
 // Function to fetch website content
 async function fetchWebsiteContent() {
@@ -21,58 +23,68 @@ async function fetchWebsiteContent() {
     return contentCache;
   }
 
-  const backendUrl = process.env.BACKEND_URL || 'https://portfolio-backend-zwr8.onrender.com';
-  console.log('Using backend URL:', backendUrl);
-  console.log('Environment variables:', {
-    NODE_ENV: process.env.NODE_ENV,
-    BACKEND_URL: process.env.BACKEND_URL,
-    GROQ_API_KEY: process.env.GROQ_API_KEY ? 'Set' : 'Not Set'
-  });
-  
-  try {
-    const url = `${backendUrl}/api/content`;
-    console.log('Making request to:', url);
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Origin': 'https://rojapinnamraju-portfolio.netlify.app'
-      },
-      timeout: 5000 // 5 second timeout
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
-    }
-    
-    const content = await response.json();
-    console.log('Content fetched successfully');
-
-    // Update cache
-    contentCache = content;
-    lastFetchTime = Date.now();
-    
-    return content;
-  } catch (error) {
-    console.error('Error fetching content:', error);
-    // Return cached content if available, even if expired
-    if (contentCache) {
-      console.log('Returning expired cached content due to error');
-      return contentCache;
-    }
-    // Return default content if no cache is available
-    return {
-      about: 'Software Engineer and AI enthusiast',
-      experience: [],
-      education: [],
-      skills: [],
-      projects: {},
-      contact: {}
-    };
+  // If we're already fetching, return the existing promise
+  if (isFetching && fetchPromise) {
+    console.log('Fetch already in progress, waiting for result');
+    return fetchPromise;
   }
+
+  // Start new fetch
+  isFetching = true;
+  fetchPromise = (async () => {
+    try {
+      const backendUrl = process.env.BACKEND_URL || 'https://portfolio-backend-zwr8.onrender.com';
+      console.log('Using backend URL:', backendUrl);
+      
+      const url = `${backendUrl}/api/content`;
+      console.log('Making request to:', url);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Origin': 'https://rojapinnamraju-portfolio.netlify.app'
+        },
+        timeout: 8000 // 8 second timeout
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+      }
+      
+      const content = await response.json();
+      console.log('Content fetched successfully');
+
+      // Update cache
+      contentCache = content;
+      lastFetchTime = Date.now();
+      
+      return content;
+    } catch (error) {
+      console.error('Error fetching content:', error);
+      // Return cached content if available, even if expired
+      if (contentCache) {
+        console.log('Returning expired cached content due to error');
+        return contentCache;
+      }
+      // Return default content if no cache is available
+      return {
+        about: 'Software Engineer and AI enthusiast',
+        experience: [],
+        education: [],
+        skills: [],
+        projects: {},
+        contact: {}
+      };
+    } finally {
+      isFetching = false;
+      fetchPromise = null;
+    }
+  })();
+
+  return fetchPromise;
 }
 
 // Chat endpoint

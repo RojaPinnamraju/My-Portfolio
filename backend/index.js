@@ -76,7 +76,7 @@ async function fetchPageContent(url, retries = 3) {
         '--disable-site-isolation-trials'
       ],
       headless: 'new',
-      timeout: 5000 // 5 second launch timeout
+      timeout: 10000 // 10 second launch timeout
     };
 
     console.log('Launching browser with options:', launchOptions);
@@ -84,8 +84,8 @@ async function fetchPageContent(url, retries = 3) {
     const page = await browser.newPage();
 
     // Set shorter timeouts for faster response
-    page.setDefaultNavigationTimeout(5000);
-    page.setDefaultTimeout(5000);
+    page.setDefaultNavigationTimeout(8000);
+    page.setDefaultTimeout(8000);
 
     // Enable request interception for debugging
     await page.setRequestInterception(true);
@@ -106,8 +106,8 @@ async function fetchPageContent(url, retries = 3) {
     // Navigate to the page and wait for network idle
     console.log('Navigating to page...');
     await page.goto(url, { 
-      waitUntil: ['networkidle0', 'domcontentloaded'],
-      timeout: 5000 
+      waitUntil: ['domcontentloaded'],
+      timeout: 8000 
     });
 
     // Wait for React to hydrate with a more specific check
@@ -124,11 +124,11 @@ async function fetchPageContent(url, retries = 3) {
         'projects'
       ];
       
-      return sections.every(section => {
+      return sections.some(section => {
         const element = document.querySelector(`section[data-section="${section}"]`);
         return element && element.textContent.trim().length > 0;
       });
-    }, { timeout: 5000 });
+    }, { timeout: 8000 });
 
     // Wait for any dynamic content
     console.log('Waiting for dynamic content...');
