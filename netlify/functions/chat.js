@@ -11,11 +11,23 @@ async function fetchWebsiteContent() {
   console.log('Starting content fetch...');
   const backendUrl = process.env.BACKEND_URL || 'https://portfolio-backend-zwr8.onrender.com';
   console.log('Using backend URL:', backendUrl);
+  console.log('Environment variables:', {
+    NODE_ENV: process.env.NODE_ENV,
+    BACKEND_URL: process.env.BACKEND_URL,
+    GROQ_API_KEY: process.env.GROQ_API_KEY ? 'Set' : 'Not Set'
+  });
   
   try {
     // Add /api prefix to the URL
-    console.log('Making request to:', `${backendUrl}/api/content`);
-    const response = await fetch(`${backendUrl}/api/content`, {
+    const url = `${backendUrl}/api/content`;
+    console.log('Making request to:', url);
+    console.log('Request headers:', {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Origin': 'https://my-portfolio-olw8.netlify.app'
+    });
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -23,6 +35,9 @@ async function fetchWebsiteContent() {
         'Origin': 'https://my-portfolio-olw8.netlify.app'
       }
     });
+    
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
     
     if (!response.ok) {
       console.error('Backend response not OK:', response.status, response.statusText);
@@ -40,7 +55,8 @@ async function fetchWebsiteContent() {
     console.error('Error details:', {
       name: error.name,
       message: error.message,
-      stack: error.stack
+      stack: error.stack,
+      code: error.code
     });
     return {
       about: 'No information available',
@@ -55,6 +71,14 @@ async function fetchWebsiteContent() {
 
 // Chat endpoint
 export const handler = async function(event, context) {
+  console.log('Chat function invoked');
+  console.log('Event:', {
+    httpMethod: event.httpMethod,
+    path: event.path,
+    headers: event.headers,
+    queryStringParameters: event.queryStringParameters
+  });
+
   // Enable CORS
   const headers = {
     'Access-Control-Allow-Origin': 'https://my-portfolio-olw8.netlify.app',
