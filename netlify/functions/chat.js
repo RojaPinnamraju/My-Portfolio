@@ -41,11 +41,9 @@ async function fetchWebsiteContent() {
     return content;
   } catch (error) {
     console.error('Error fetching content:', error);
-    if (error.name === 'AbortError' || error.type === 'request-timeout') {
-      throw new Error('Request timed out after 5 seconds');
-    }
+    // Return default content instead of throwing
     return {
-      about: 'No information available',
+      about: 'Software Engineer and AI enthusiast',
       experience: [],
       education: [],
       skills: [],
@@ -122,21 +120,8 @@ export const handler = async function(event, context) {
     }
 
     console.log('Fetching website content...');
-    let content;
-    try {
-      content = await fetchWebsiteContent();
-      console.log('Content fetched successfully');
-    } catch (error) {
-      console.error('Error fetching content:', error);
-      // Return a default response if content fetch fails
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ 
-          response: "I'm having trouble accessing my portfolio information right now. Please try again in a few moments."
-        })
-      };
-    }
+    const content = await fetchWebsiteContent();
+    console.log('Content fetched successfully');
 
     const systemPrompt = `You are Roja Pinnamraju, a Software Engineer and AI enthusiast. You should respond to questions in first person, as if you are speaking directly to the user. Here is your information:
 
