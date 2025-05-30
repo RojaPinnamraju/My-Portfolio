@@ -8,7 +8,7 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 3000;
 const portfolioUrl = process.env.NODE_ENV === 'production' 
-  ? 'https://my-portfolio-olw8.netlify.app'
+  ? 'https://rojapinnamraju-portfolio.netlify.app'
   : (process.env.PORTFOLIO_URL || 'http://localhost:5173');
 
 // Cache configuration
@@ -19,10 +19,10 @@ let lastFetchTime = null;
 // CORS configuration
 const corsOptions = {
   origin: [
-    'https://my-portfolio-olw8.netlify.app',
+    'https://rojapinnamraju-portfolio.netlify.app',
     'http://localhost:5173',
     'http://localhost:8888',
-    'https://my-portfolio-olw8.netlify.app/.netlify/functions/chat'
+    'https://rojapinnamraju-portfolio.netlify.app/.netlify/functions/chat'
   ],
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
@@ -48,6 +48,13 @@ const cleanText = (text) => {
   if (!text) return null;
   return text.replace(/\s+/g, ' ').trim();
 };
+
+// Function to clear cache
+function clearCache() {
+  contentCache = null;
+  lastFetchTime = null;
+  console.log('Cache cleared');
+}
 
 // Function to fetch page content using Puppeteer
 async function fetchPageContent(url, retries = 3) {
@@ -76,10 +83,13 @@ async function fetchPageContent(url, retries = 3) {
     await page.setRequestInterception(true);
     page.on('request', request => {
       console.log(`Request: ${request.method()} ${request.url()}`);
+      const headers = request.headers();
+      console.log('Request headers:', headers);
       request.continue();
     });
     page.on('response', response => {
       console.log(`Response: ${response.status()} ${response.url()}`);
+      console.log('Response headers:', response.headers());
     });
 
     // Set viewport and user agent
@@ -307,11 +317,8 @@ app.get('/health', (req, res) => {
 // API endpoint to fetch content
 app.get('/api/content', async (req, res) => {
   try {
-    // Check if we have cached content that's still valid
-    if (contentCache && lastFetchTime && (Date.now() - lastFetchTime < CACHE_DURATION)) {
-      console.log('Returning cached content');
-      return res.json(contentCache);
-    }
+    // Clear cache for debugging
+    clearCache();
 
     console.log(`Fetching content from ${portfolioUrl}`);
     const content = await fetchWebsiteContent();
