@@ -2,8 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
-const puppeteer = require('puppeteer');
-const chromium = require('@sparticuz/chromium');
 require('dotenv').config();
 
 const app = express();
@@ -50,243 +48,26 @@ const cleanText = (text) => {
   return text.replace(/\s+/g, ' ').trim();
 };
 
-// Function to extract section content
-const extractSection = ($, sectionName) => {
-  console.log(`Attempting to extract section: ${sectionName}`);
-  
-  // Try to find the section by data-section attribute
-  const section = $(`section[data-section="${sectionName}"]`);
-  if (section.length > 0) {
-    console.log(`Found section with data-section="${sectionName}"`);
-    const text = section.find('Text, p, div, [class*="chakra-text"]').text();
-    console.log(`Extracted text: ${text}`);
-    return cleanText(text);
-  }
-
-  // Try to find by heading and following content
-  const heading = $(`h1, h2, h3, h4, h5, h6, [class*="chakra-heading"]`).filter((i, el) => {
-    return $(el).text().toLowerCase().includes(sectionName.toLowerCase());
-  });
-
-  if (heading.length > 0) {
-    console.log(`Found heading: ${heading.text()}`);
-    const content = [];
-    let current = heading.next();
-    while (current.length > 0 && !current.is('h1, h2, h3, h4, h5, h6, [class*="chakra-heading"]')) {
-      content.push(cleanText(current.text()));
-      current = current.next();
-    }
-    const result = content.join(' ');
-    console.log(`Extracted content from heading: ${result}`);
-    return result;
-  }
-
-  // Try to find by class name
-  const classSection = $(`[class*="${sectionName.toLowerCase()}"]`);
-  if (classSection.length > 0) {
-    console.log(`Found section with class containing "${sectionName}"`);
-    const text = classSection.find('Text, p, div, [class*="chakra-text"]').text();
-    console.log(`Extracted text from class: ${text}`);
-    return cleanText(text);
-  }
-
-  console.log(`No element found for section: ${sectionName}`);
-  return null;
-};
-
-// Function to extract skills
-const extractSkills = ($) => {
-  console.log('Attempting to extract skills');
-  const skills = [];
-  
-  // Look for skill components
-  $('.skill, [class*="skill"], [class*="Skill"], [class*="chakra-stack"]').each((i, el) => {
-    const name = $(el).find('Text, [class*="chakra-text"], [class*="chakra-heading"]').text();
-    const level = $(el).find('progress, [class*="chakra-progress"]').attr('value') || 0;
-    if (name) {
-      console.log(`Found skill: ${name} with level ${level}`);
-      skills.push({
-        name: cleanText(name),
-        level: parseInt(level) || 0
-      });
-    }
-  });
-
-  // If no skills found, try to find them in the skills section
-  if (skills.length === 0) {
-    const skillsSection = $('section[data-section="skills"]');
-    if (skillsSection.length > 0) {
-      skillsSection.find('.skill, [class*="skill"], [class*="Skill"], [class*="chakra-stack"]').each((i, el) => {
-        const name = $(el).find('Text, [class*="chakra-text"], [class*="chakra-heading"]').text();
-        const level = $(el).find('progress, [class*="chakra-progress"]').attr('value') || 0;
-        if (name) {
-          console.log(`Found skill in section: ${name} with level ${level}`);
-          skills.push({
-            name: cleanText(name),
-            level: parseInt(level) || 0
-          });
-        }
-      });
-    }
-  }
-
-  console.log(`Extracted ${skills.length} skills`);
-  return skills;
-};
-
-// Function to extract experience
-const extractExperience = ($) => {
-  console.log('Attempting to extract experience');
-  const experiences = [];
-  
-  // Look for experience components with specific class names
-  $('.experience, [class*="experience"], [class*="Experience"]').each((i, el) => {
-    const title = $(el).find('.title, [class*="title"]').text();
-    const company = $(el).find('.company, [class*="company"]').text();
-    const period = $(el).find('.period, [class*="period"]').text();
-    const description = [];
-    $(el).find('.description li, .description p, [class*="description"] li, [class*="description"] p').each((j, item) => {
-      const text = $(item).text().trim();
-      if (text) {
-        description.push(cleanText(text.replace(/^•\s*/, '')));  // Remove bullet points
-      }
-    });
-    
-    if (title) {
-      console.log(`Found experience: ${title} at ${company}`);
-      experiences.push({
-        title: cleanText(title),
-        company: cleanText(company),
-        period: cleanText(period),
-        description: description
-      });
-    }
-  });
-
-  // If no experiences found, try to find them in the experience section
-  if (experiences.length === 0) {
-    const expSection = $('section[data-section="experience"]');
-    if (expSection.length > 0) {
-      expSection.find('.experience, [class*="experience"], [class*="Experience"]').each((i, el) => {
-        const title = $(el).find('.title, [class*="title"]').text();
-        const company = $(el).find('.company, [class*="company"]').text();
-        const period = $(el).find('.period, [class*="period"]').text();
-        const description = [];
-        $(el).find('.description li, .description p, [class*="description"] li, [class*="description"] p').each((j, item) => {
-          const text = $(item).text().trim();
-          if (text) {
-            description.push(cleanText(text.replace(/^•\s*/, '')));  // Remove bullet points
-          }
-        });
-        
-        if (title) {
-          console.log(`Found experience in section: ${title} at ${company}`);
-          experiences.push({
-            title: cleanText(title),
-            company: cleanText(company),
-            period: cleanText(period),
-            description: description
-          });
-        }
-      });
-    }
-  }
-
-  console.log(`Extracted ${experiences.length} experiences`);
-  return experiences;
-};
-
-// Function to extract education
-const extractEducation = ($) => {
-  console.log('Attempting to extract education');
-  const education = [];
-  
-  // Look for education components
-  $('.education, [class*="education"], [class*="Education"], [class*="chakra-stack"]').each((i, el) => {
-    const degree = $(el).find('[class*="chakra-heading"], [class*="chakra-text"], Text').text();
-    const school = $(el).find('[class*="chakra-text"], [class*="school"], [class*="institution"]').text();
-    const period = $(el).find('[class*="chakra-text"], [class*="period"], [class*="date"]').text();
-    const details = [];
-    $(el).find('li, [class*="chakra-text"], [class*="detail"], Text').each((j, item) => {
-      const text = $(item).text().trim();
-      if (text && !text.startsWith('•')) {
-        details.push(cleanText(text));
-      }
-    });
-    
-    if (degree) {
-      console.log(`Found education: ${degree} at ${school}`);
-      education.push({
-        degree: cleanText(degree),
-        school: cleanText(school),
-        period: cleanText(period),
-        details: details
-      });
-    }
-  });
-
-  // If no education found, try to find it in the education section
-  if (education.length === 0) {
-    const eduSection = $('section[data-section="education"]');
-    if (eduSection.length > 0) {
-      eduSection.find('.education, [class*="education"], [class*="Education"], [class*="chakra-stack"]').each((i, el) => {
-        const degree = $(el).find('[class*="chakra-heading"], [class*="chakra-text"], Text').text();
-        const school = $(el).find('[class*="chakra-text"], [class*="school"], [class*="institution"]').text();
-        const period = $(el).find('[class*="chakra-text"], [class*="period"], [class*="date"]').text();
-        const details = [];
-        $(el).find('li, [class*="chakra-text"], [class*="detail"], Text').each((j, item) => {
-          const text = $(item).text().trim();
-          if (text && !text.startsWith('•')) {
-            details.push(cleanText(text));
-          }
-        });
-        
-        if (degree) {
-          console.log(`Found education in section: ${degree} at ${school}`);
-          education.push({
-            degree: cleanText(degree),
-            school: cleanText(school),
-            period: cleanText(period),
-            details: details
-          });
-        }
-      });
-    }
-  }
-
-  console.log(`Extracted ${education.length} education entries`);
-  return education;
-};
-
-// Function to fetch page content with Puppeteer
+// Function to fetch page content
 async function fetchPageContent(url, retries = 3) {
   console.log(`Fetching content from ${url} (attempt ${4 - retries}/3)`);
-  let browser = null;
   
   try {
-    browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: { width: 1280, height: 800 },
-      executablePath: await chromium.executablePath,
-      headless: true,
-      ignoreHTTPSErrors: true,
-      timeout: 30000 // Increase timeout to 30 seconds
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
     });
 
-    const page = await browser.newPage();
-    await page.setDefaultNavigationTimeout(30000); // Set navigation timeout to 30 seconds
-    await page.setDefaultTimeout(30000); // Set default timeout to 30 seconds
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
 
-    console.log('Navigating to page...');
-    await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
-    console.log('Page loaded successfully');
-
-    // Wait for content to be rendered
-    await page.waitForTimeout(2000);
-    
-    const content = await page.content();
+    const html = await response.text();
     console.log('Content fetched successfully');
-    return content;
+    return html;
   } catch (error) {
     console.error('Error fetching page content:', error);
     if (retries > 1) {
@@ -295,10 +76,6 @@ async function fetchPageContent(url, retries = 3) {
       return fetchPageContent(url, retries - 1);
     }
     throw new Error(`Failed to fetch content after 3 attempts: ${error.message}`);
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
   }
 }
 
