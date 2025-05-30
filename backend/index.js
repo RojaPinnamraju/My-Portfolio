@@ -191,40 +191,116 @@ async function fetchPageContent(url, retries = 3) {
       await Promise.all([
         page.waitForSelector('section[data-section="about"], div[class*="about"]', { timeout: 5000 }).catch(() => console.log('About section not found')),
         page.waitForSelector('section[data-section="experience"], div[class*="experience"]', { timeout: 5000 }).catch(() => console.log('Experience section not found')),
-        page.waitForSelector('section[data-section="education"], div[class*="education"]', { timeout: 5000 }).catch(() => console.log('Education section not found')),
-        page.waitForSelector('section[data-section="projects"], div[class*="projects"]', { timeout: 5000 }).catch(() => console.log('Projects section not found')),
-        page.waitForSelector('section[data-section="expertise"], div[class*="expertise"]', { timeout: 5000 }).catch(() => console.log('Expertise section not found'))
+        page.waitForSelector('section[data-section="education"], div[class*="education"]', { timeout: 5000 }).catch(() => console.log('Education section not found'))
       ]);
 
-      // Scroll through the page to trigger lazy loading
+      // Extract About page content first
+      const aboutContent = await page.evaluate(() => {
+        const app = document.querySelector('div.App, div[class*="css-"]');
+        return app ? app.innerHTML : '';
+      });
+
+      // Now navigate to Projects page
+      console.log('Navigating to Projects page...');
       await page.evaluate(() => {
-        window.scrollTo(0, 0);
+        const projectsLink = Array.from(document.querySelectorAll('a')).find(a => 
+          a.textContent.includes('Projects') || a.href.includes('/projects')
+        );
+        if (projectsLink) {
+          projectsLink.click();
+        }
+      });
+
+      // Wait for navigation to complete
+      await page.waitForTimeout(2000);
+
+      // Wait for React to finish rendering projects
+      await page.evaluate(() => {
         return new Promise((resolve) => {
-          let totalHeight = 0;
-          const distance = 100;
-          const timer = setInterval(() => {
-            const scrollHeight = document.body.scrollHeight;
-            window.scrollBy(0, distance);
-            totalHeight += distance;
-            
-            if(totalHeight >= scrollHeight){
-              clearInterval(timer);
+          let attempts = 0;
+          const checkReady = () => {
+            attempts++;
+            const app = document.querySelector('div.App, div[class*="css-"]');
+            if (app && app.textContent.length > 1000) {
+              resolve();
+            } else if (attempts < 30) {
+              setTimeout(checkReady, 1000);
+            } else {
               resolve();
             }
-          }, 100);
+          };
+          checkReady();
         });
       });
 
-      // Wait for any animations to complete
+      // Additional wait for dynamic content
+      await page.waitForTimeout(5000);
+
+      // Wait for projects section
+      await page.waitForSelector('section[data-section="projects"], div[class*="projects"]', { timeout: 5000 })
+        .catch(() => console.log('Projects section not found'));
+
+      // Get Projects page content
+      const projectsContent = await page.evaluate(() => {
+        const app = document.querySelector('div.App, div[class*="css-"]');
+        return app ? app.innerHTML : '';
+      });
+
+      // Now navigate to Contact page
+      console.log('Navigating to Contact page...');
+      await page.evaluate(() => {
+        const contactLink = Array.from(document.querySelectorAll('a')).find(a => 
+          a.textContent.includes('Contact') || a.href.includes('/contact')
+        );
+        if (contactLink) {
+          contactLink.click();
+        }
+      });
+
+      // Wait for navigation to complete
       await page.waitForTimeout(2000);
 
-      // Log the actual content for debugging
-      const content = await page.evaluate(() => {
-        const app = document.querySelector('div.App, div[class*="css-"]');
-        return app ? app.innerHTML : 'No App element found';
+      // Wait for React to finish rendering contact page
+      await page.evaluate(() => {
+        return new Promise((resolve) => {
+          let attempts = 0;
+          const checkReady = () => {
+            attempts++;
+            const app = document.querySelector('div.App, div[class*="css-"]');
+            if (app && app.textContent.length > 1000) {
+              resolve();
+            } else if (attempts < 30) {
+              setTimeout(checkReady, 1000);
+            } else {
+              resolve();
+            }
+          };
+          checkReady();
+        });
       });
-      console.log('App content length:', content.length);
-      console.log('First 1000 chars of content:', content.substring(0, 1000));
+
+      // Additional wait for dynamic content
+      await page.waitForTimeout(5000);
+
+      // Wait for contact section
+      await page.waitForSelector('section[data-section="contact"], div[class*="contact"]', { timeout: 5000 })
+        .catch(() => console.log('Contact section not found'));
+
+      // Get Contact page content
+      const contactContent = await page.evaluate(() => {
+        const app = document.querySelector('div.App, div[class*="css-"]');
+        return app ? app.innerHTML : '';
+      });
+
+      // Combine all content
+      const combinedContent = aboutContent + projectsContent + contactContent;
+
+      // Create a new Cheerio instance with the combined content
+      const $ = cheerio.load(combinedContent);
+
+      // Log the actual content for debugging
+      console.log('App content length:', combinedContent.length);
+      console.log('First 1000 chars of content:', combinedContent.substring(0, 1000));
 
       // Additional check for content loading
       const hasContent = await page.evaluate(() => {
@@ -234,7 +310,8 @@ async function fetchPageContent(url, retries = 3) {
           text.includes('Experience') ||
           text.includes('Education') ||
           text.includes('Skills') ||
-          text.includes('Projects')
+          text.includes('Projects') ||
+          text.includes('Contact')
         );
       });
 
@@ -242,17 +319,13 @@ async function fetchPageContent(url, retries = 3) {
         console.log('Content not fully loaded, waiting additional time...');
         await page.waitForTimeout(5000);
       }
+
+      // Return the combined HTML for processing
+      return combinedContent;
     } catch (error) {
       console.error('Error waiting for React hydration:', error);
+      throw error;
     }
-
-    // Get the page content
-    const html = await page.content();
-    console.log('Content fetched successfully, length:', html.length);
-    console.log('=== Content Fetch Complete ===\n');
-
-    await browser.close();
-    return html;
   } catch (error) {
     console.error('Error fetching page content:', error);
     if (browser) {
@@ -397,14 +470,15 @@ async function fetchWebsiteContent() {
 
       // Extract projects with more flexible selectors
       const projects = {};
-      $('section[data-section="projects"] .project, div[class*="project"], div[class*="chakra-stack"] div[class*="project"], div[class*="projects"] div[class*="project"], div[class*="chakra-container"] div[class*="project"]').each((i, el) => {
+      const projectSet = new Set();
+      $('.project, div[class*="project"], div[class*="chakra-stack"] div[class*="project"], div[class*="chakra-container"] div[class*="project"]').each((i, el) => {
         const $el = $(el);
-        const title = $el.find('h2[class*="chakra-heading"], h2[class*="title"], div[class*="title"], h3[class*="chakra-heading"], div[class*="chakra-text"]').text().trim();
+        const name = $el.find('.title, h2[class*="chakra-heading"], h2[class*="title"], h3[class*="chakra-heading"], div[class*="title"]').text().trim();
+        const description = $el.find('.description, div[class*="description"], div[class*="chakra-text"], p[class*="chakra-text"]').text().trim();
         
-        if (title) {
-          const description = $el.find('p[class*="chakra-text"], div[class*="description"], div[class*="text"], div[class*="chakra-text"]').text().trim();
+        if (name && description) {
           const technologies = [];
-          $el.find('div[class*="technologies"] span, div[class*="tech-stack"] span, div[class*="chakra-text"], div[class*="badge"], span[class*="chakra-text"]').each((j, tech) => {
+          $el.find('.technologies span, div[class*="technologies"] span, div[class*="tech-stack"] span, div[class*="badge"], span[class*="chakra-text"]').each((j, tech) => {
             const techName = $(tech).text().trim();
             if (techName && techName.length > 2) {
               technologies.push(techName);
@@ -419,11 +493,12 @@ async function fetchWebsiteContent() {
             }
           });
           
-          if (!projects[title]) {
-            projects[title] = {
-              name: cleanText(title),
+          if (!projectSet.has(name)) {
+            projectSet.add(name);
+            projects[`project-${i + 1}`] = {
+              name: cleanText(name),
               description: cleanText(description),
-              technologies: technologies.map(t => cleanText(t)),
+              technologies: technologies.length > 0 ? technologies.map(t => cleanText(t)) : ['Not specified'],
               links: links
             };
           }
@@ -431,69 +506,73 @@ async function fetchWebsiteContent() {
       });
       console.log('Projects extracted:', Object.keys(projects).length);
 
-      // Extract contact with more flexible selectors
+      // Extract contact information with more flexible selectors
       const contact = {};
-      $('section[data-section="contact"] a, div[class*="contact"] a, a[href*="github.com"], a[href*="linkedin.com"], a[href*="mailto:"], div[class*="chakra-container"] a').each((i, el) => {
-        const href = $(el).attr('href');
-        if (href) {
-          if (href.includes('github.com')) {
-            contact['GitHub'] = href;
+      const contactSet = new Set();
+      
+      // Look for contact information in various places
+      $('section[data-section="contact"], footer, [class*="contact"], nav, div[class*="chakra-container"]').find('a[href]').each((_, el) => {
+        const $el = $(el);
+        const href = $el.attr('href');
+        const text = $el.text().trim().toLowerCase();
+        
+        // Skip navigation links
+        if (text === 'home' || text === 'about' || text === 'projects' || text === 'contact') {
+          return;
+        }
+        
+        if (href && !contactSet.has(href)) {
+          contactSet.add(href);
+          
+          if (href.startsWith('mailto:')) {
+            contact.email = href.replace('mailto:', '');
           } else if (href.includes('linkedin.com')) {
-            contact['LinkedIn'] = href;
-          } else if (href.includes('mailto:')) {
-            contact['Email'] = href.replace('mailto:', '');
+            contact.linkedin = href;
+          } else if (href.includes('github.com')) {
+            contact.github = href;
+          } else if (href.includes('twitter.com')) {
+            contact.twitter = href;
+          } else if (href.includes('instagram.com')) {
+            contact.instagram = href;
+          } else if (text === 'live demo' || text === 'demo') {
+            contact.demo = href;
+          } else if (text && !contact[text]) {
+            contact[text] = href;
           }
         }
       });
 
-      // Also look for contact info in the footer or navigation
-      $('footer a, nav a, div[class*="footer"] a, div[class*="nav"] a, div[class*="chakra-container"] a').each((i, el) => {
-        const href = $(el).attr('href');
-        if (href) {
-          if (href.includes('github.com')) {
-            contact['GitHub'] = href;
-          } else if (href.includes('linkedin.com')) {
-            contact['LinkedIn'] = href;
-          } else if (href.includes('mailto:')) {
-            contact['Email'] = href.replace('mailto:', '');
+      // Also look for contact information in text content
+      $('section[data-section="contact"], footer, [class*="contact"]').find('p, div[class*="chakra-text"]').each((_, el) => {
+        const text = $(el).text().trim();
+        if (text.includes('@') && text.includes('.')) {
+          const email = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+          if (email && !contact.email) {
+            contact.email = email[0];
           }
         }
       });
+
+      // Log the actual contact information for debugging
+      console.log('Contact information:', contact);
       console.log('Contact info extracted:', Object.keys(contact).length);
 
-      // Extract areas of expertise with more flexible selectors
-      const expertise = [];
-      $('section[data-section="expertise"] .feature, div[class*="feature"], div[class*="chakra-stack"] div[class*="feature"]').each((i, el) => {
-        const $el = $(el);
-        const title = $el.find('p[class*="fontWeight"], div[class*="title"], div[class*="chakra-text"]').text().trim();
-        const text = $el.find('p[class*="chakra-text"], div[class*="description"], div[class*="text"]').text().trim();
-        
-        if (title && text && title.length > 3 && text.length > 10) {
-          expertise.push({
-            title: cleanText(title),
-            description: cleanText(text)
-          });
-        }
-      });
-      console.log('Areas of expertise extracted:', expertise.length);
-
-      // Log the extracted content for debugging
+      // Log extraction results
       console.log('Extracted content:', {
         skills: skills.map(s => s.name),
         experiences: experiences.map(e => ({ title: e.title, company: e.company })),
         education: education.map(e => ({ degree: e.degree, school: e.school })),
         projects: Object.keys(projects),
-        expertise: expertise.map(e => e.title)
+        contact: Object.keys(contact)
       });
 
       const content = {
         about: aboutText,
+        skills,
         experience: experiences,
-        education: education,
-        skills: skills,
-        projects: projects,
-        expertise: expertise,
-        contact: contact
+        education,
+        projects,
+        contact
       };
 
       // Update cache
