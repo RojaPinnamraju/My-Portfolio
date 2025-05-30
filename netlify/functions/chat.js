@@ -32,55 +32,66 @@ async function fetchWebsiteContent() {
   // Start new fetch
   isFetching = true;
   fetchPromise = (async () => {
-    try {
-      const backendUrl = process.env.BACKEND_URL || 'https://portfolio-backend-zwr8.onrender.com';
-      console.log('Using backend URL:', backendUrl);
-      
-      const url = `${backendUrl}/api/content`;
-      console.log('Making request to:', url);
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        const backendUrl = process.env.BACKEND_URL || 'https://portfolio-backend-zwr8.onrender.com';
+        console.log('Using backend URL:', backendUrl);
+        
+        const url = `${backendUrl}/api/content`;
+        console.log('Making request to:', url);
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Origin': 'https://rojapinnamraju-portfolio.netlify.app'
-        },
-        timeout: 8000 // 8 second timeout
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
-      }
-      
-      const content = await response.json();
-      console.log('Content fetched successfully');
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Origin': 'https://rojapinnamraju-portfolio.netlify.app'
+          },
+          timeout: 12000 // 12 second timeout
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+        }
+        
+        const content = await response.json();
+        console.log('Content fetched successfully');
 
-      // Update cache
-      contentCache = content;
-      lastFetchTime = Date.now();
-      
-      return content;
-    } catch (error) {
-      console.error('Error fetching content:', error);
-      // Return cached content if available, even if expired
-      if (contentCache) {
-        console.log('Returning expired cached content due to error');
-        return contentCache;
+        // Update cache
+        contentCache = content;
+        lastFetchTime = Date.now();
+        
+        return content;
+      } catch (error) {
+        console.error(`Error fetching content (attempt ${retryCount + 1}/${maxRetries}):`, error);
+        
+        if (retryCount === maxRetries - 1) {
+          // On last retry, return cached content if available
+          if (contentCache) {
+            console.log('Returning expired cached content due to error');
+            return contentCache;
+          }
+          // Return default content if no cache is available
+          return {
+            about: 'Software Engineer and AI enthusiast',
+            experience: [],
+            education: [],
+            skills: [],
+            projects: {},
+            contact: {}
+          };
+        }
+        
+        // Wait before retrying with exponential backoff
+        const delay = Math.pow(2, retryCount) * 1000;
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        retryCount++;
       }
-      // Return default content if no cache is available
-      return {
-        about: 'Software Engineer and AI enthusiast',
-        experience: [],
-        education: [],
-        skills: [],
-        projects: {},
-        contact: {}
-      };
-    } finally {
-      isFetching = false;
-      fetchPromise = null;
     }
   })();
 

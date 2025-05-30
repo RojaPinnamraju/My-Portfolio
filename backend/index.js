@@ -76,7 +76,7 @@ async function fetchPageContent(url, retries = 3) {
         '--disable-site-isolation-trials'
       ],
       headless: 'new',
-      timeout: 10000 // 10 second launch timeout
+      timeout: 15000 // 15 second launch timeout
     };
 
     console.log('Launching browser with options:', launchOptions);
@@ -84,8 +84,8 @@ async function fetchPageContent(url, retries = 3) {
     const page = await browser.newPage();
 
     // Set shorter timeouts for faster response
-    page.setDefaultNavigationTimeout(8000);
-    page.setDefaultTimeout(8000);
+    page.setDefaultNavigationTimeout(12000);
+    page.setDefaultTimeout(12000);
 
     // Enable request interception for debugging
     await page.setRequestInterception(true);
@@ -107,7 +107,7 @@ async function fetchPageContent(url, retries = 3) {
     console.log('Navigating to page...');
     await page.goto(url, { 
       waitUntil: ['domcontentloaded'],
-      timeout: 8000 
+      timeout: 12000 
     });
 
     // Wait for React to hydrate with a more specific check
@@ -128,11 +128,11 @@ async function fetchPageContent(url, retries = 3) {
         const element = document.querySelector(`section[data-section="${section}"]`);
         return element && element.textContent.trim().length > 0;
       });
-    }, { timeout: 8000 });
+    }, { timeout: 12000 });
 
     // Wait for any dynamic content
     console.log('Waiting for dynamic content...');
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000);
 
     // Get the page content
     const html = await page.content();
@@ -147,8 +147,9 @@ async function fetchPageContent(url, retries = 3) {
     }
     
     if (retries > 1) {
-      console.log(`Retrying... (${retries - 1} attempts remaining)`);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const delay = (4 - retries) * 2000; // Exponential backoff
+      console.log(`Retrying in ${delay}ms... (${retries - 1} attempts remaining)`);
+      await new Promise(resolve => setTimeout(resolve, delay));
       return fetchPageContent(url, retries - 1);
     }
     throw new Error(`Failed to fetch content after 3 attempts: ${error.message}`);
@@ -359,7 +360,7 @@ app.get('/api/content', async (req, res) => {
     }
 
     // Return a minimal response if no cache is available
-    res.json({
+    res.status(200).json({
       about: 'Software Engineer and AI enthusiast',
       experience: [],
       education: [],
