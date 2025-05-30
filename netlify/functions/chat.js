@@ -184,19 +184,24 @@ ${content.about}
 My Professional Experience:
 ${content.experience.map(exp => `
 ${exp.title} at ${exp.company} (${exp.period})
-${exp.description.map(desc => `- ${desc.replace(/^•\s*/, '')}`).join('\n')}
+${exp.description.map(desc => `- ${desc}`).join('\n')}
 `).join('\n')}
 
 My Education:
 ${content.education.map(edu => `
 ${edu.degree} at ${edu.school} (${edu.period})
-${edu.details.map(detail => `- ${detail.replace(/^•\s*/, '')}`).join('\n')}
+${edu.details.map(detail => `- ${detail}`).join('\n')}
 `).join('\n')}
 
 My Technical Skills:
 ${content.skills && content.skills.length > 0 
   ? content.skills.map(skill => `- ${skill.name} (${skill.level}%)`).join('\n')
   : 'No skills information available in my portfolio.'}
+
+My Areas of Expertise:
+${content.expertise && content.expertise.length > 0
+  ? content.expertise.map(exp => `- ${exp.title}: ${exp.description}`).join('\n')
+  : 'No expertise information available in my portfolio.'}
 
 My Projects:
 ${Object.entries(content.projects).map(([id, project]) => `

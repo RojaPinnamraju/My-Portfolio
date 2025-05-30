@@ -264,19 +264,24 @@ async function fetchWebsiteContent() {
       // Extract education
       const education = [];
       const educationSet = new Set();
-      $('div.App').find('div').each((i, el) => {
-        const text = $(el).text().trim();
-        if (text && text.includes('AI Enthusiast') && !educationSet.has(text)) {
-          educationSet.add(text);
-          const details = extractUniqueContent(text);
-          if (details.length > 0) {
-            education.push({
-              degree: 'Software Engineering',
-              school: 'Self-taught',
-              period: 'Ongoing',
-              details: [extractMainContent(text)].filter(Boolean)
-            });
-          }
+      $('div.App').find('div.education').each((i, el) => {
+        const degree = $(el).find('.degree').text().trim();
+        const school = $(el).find('.school').text().trim();
+        const period = $(el).find('.period').text().trim();
+        const details = [];
+        $(el).find('.details Text').each((j, detail) => {
+          const text = $(detail).text().trim().replace(/^•\s*/, '');
+          if (text) details.push(text);
+        });
+        
+        if (degree && school && !educationSet.has(degree + school)) {
+          educationSet.add(degree + school);
+          education.push({
+            degree: cleanText(degree),
+            school: cleanText(school),
+            period: cleanText(period),
+            details: details
+          });
         }
       });
       console.log('Education extracted:', education.length);
@@ -308,6 +313,20 @@ async function fetchWebsiteContent() {
       });
       console.log('Projects extracted:', Object.keys(projects).length);
 
+      // Extract areas of expertise
+      const expertise = [];
+      $('div.App').find('div.Feature').each((i, el) => {
+        const title = $(el).find('Text').first().text().trim();
+        const text = $(el).find('Text').last().text().trim();
+        if (title && text) {
+          expertise.push({
+            title: cleanText(title),
+            description: cleanText(text)
+          });
+        }
+      });
+      console.log('Areas of expertise extracted:', expertise.length);
+
       // Extract contact
       const contact = {};
       $('div.App').find('a').each((i, el) => {
@@ -328,6 +347,7 @@ async function fetchWebsiteContent() {
         education: education,
         skills: skills,
         projects: projects,
+        expertise: expertise,
         contact: contact
       };
 
