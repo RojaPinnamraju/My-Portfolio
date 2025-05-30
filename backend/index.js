@@ -273,9 +273,9 @@ async function fetchWebsiteContent() {
       // Extract skills
       const skills = [];
       const skillSet = new Set();
-      $('div[class*="skill"]').each((i, el) => {
-        const name = $(el).find('div[class*="name"]').text().trim();
-        const level = parseInt($(el).find('div[class*="progress"]').attr('aria-valuenow') || '0');
+      $('div[class*="chakra-stack"]').each((i, el) => {
+        const name = $(el).find('div[class*="chakra-text"]').text().trim();
+        const level = parseInt($(el).find('div[class*="chakra-progress"]').attr('aria-valuenow') || '0');
         if (name && !skillSet.has(name)) {
           skillSet.add(name);
           skills.push({
@@ -289,12 +289,12 @@ async function fetchWebsiteContent() {
       // Extract experience
       const experiences = [];
       const experienceSet = new Set();
-      $('div[class*="experience"]').each((i, el) => {
-        const title = $(el).find('div[class*="title"]').text().trim();
-        const company = $(el).find('div[class*="company"]').text().trim();
-        const period = $(el).find('div[class*="period"]').text().trim();
+      $('div[class*="chakra-stack"]').each((i, el) => {
+        const title = $(el).find('h2[class*="chakra-heading"]').text().trim();
+        const company = $(el).find('div[class*="chakra-text"][class*="brand"]').text().trim();
+        const period = $(el).find('div[class*="chakra-text"][class*="gray"]').text().trim();
         const description = [];
-        $(el).find('div[class*="description"] li').each((j, desc) => {
+        $(el).find('div[class*="chakra-stack"] div[class*="chakra-text"]').each((j, desc) => {
           const text = $(desc).text().trim().replace(/^•\s*/, '');
           if (text) description.push(text);
         });
@@ -314,12 +314,12 @@ async function fetchWebsiteContent() {
       // Extract education
       const education = [];
       const educationSet = new Set();
-      $('div[class*="education"]').each((i, el) => {
-        const degree = $(el).find('div[class*="degree"]').text().trim();
-        const school = $(el).find('div[class*="school"]').text().trim();
-        const period = $(el).find('div[class*="period"]').text().trim();
+      $('div[class*="chakra-stack"]').each((i, el) => {
+        const degree = $(el).find('h2[class*="chakra-heading"]').text().trim();
+        const school = $(el).find('div[class*="chakra-text"][class*="brand"]').text().trim();
+        const period = $(el).find('div[class*="chakra-text"][class*="gray"]').text().trim();
         const details = [];
-        $(el).find('div[class*="details"] li').each((j, detail) => {
+        $(el).find('div[class*="chakra-stack"] div[class*="chakra-text"]').each((j, detail) => {
           const text = $(detail).text().trim().replace(/^•\s*/, '');
           if (text) details.push(text);
         });
@@ -338,16 +338,16 @@ async function fetchWebsiteContent() {
 
       // Extract projects
       const projects = {};
-      $('div[class*="project"]').each((i, el) => {
-        const title = $(el).find('div[class*="name"]').text().trim();
-        const description = $(el).find('div[class*="description"]').text().trim();
+      $('div[class*="chakra-stack"]').each((i, el) => {
+        const title = $(el).find('h2[class*="chakra-heading"]').text().trim();
+        const description = $(el).find('div[class*="chakra-text"]').text().trim();
         const technologies = [];
-        $(el).find('div[class*="technology"]').each((j, tech) => {
+        $(el).find('div[class*="chakra-stack"] div[class*="chakra-text"]').each((j, tech) => {
           const techName = $(tech).text().trim();
           if (techName) technologies.push(techName);
         });
         const links = [];
-        $(el).find('a[class*="link"]').each((j, link) => {
+        $(el).find('a[class*="chakra-link"]').each((j, link) => {
           const href = $(link).attr('href');
           if (href) links.push(href);
         });
@@ -365,9 +365,9 @@ async function fetchWebsiteContent() {
 
       // Extract areas of expertise
       const expertise = [];
-      $('div[class*="feature"]').each((i, el) => {
-        const title = $(el).find('div[class*="title"]').text().trim();
-        const text = $(el).find('div[class*="description"]').text().trim();
+      $('div[class*="chakra-stack"]').each((i, el) => {
+        const title = $(el).find('div[class*="chakra-text"][class*="fontWeight"]').text().trim();
+        const text = $(el).find('div[class*="chakra-text"][class*="gray"]').text().trim();
         if (title && text) {
           expertise.push({
             title: cleanText(title),
@@ -393,11 +393,11 @@ async function fetchWebsiteContent() {
 
       // Log the extracted content for debugging
       console.log('Extracted content:', {
-        skills: skills.length,
-        experiences: experiences.length,
-        education: education.length,
-        projects: Object.keys(projects).length,
-        expertise: expertise.length
+        skills: skills.map(s => s.name),
+        experiences: experiences.map(e => ({ title: e.title, company: e.company })),
+        education: education.map(e => ({ degree: e.degree, school: e.school })),
+        projects: Object.keys(projects),
+        expertise: expertise.map(e => e.title)
       });
 
       const content = {
