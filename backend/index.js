@@ -74,8 +74,8 @@ const extractUniqueContent = (text) => {
 // Function to extract main content
 const extractMainContent = (text) => {
   if (!text) return null;
-  // Find the main description text
-  const match = text.match(/I am a passionate software engineer.*?technologies\./);
+  // Find the main description text with a more flexible pattern
+  const match = text.match(/I am a passionate software engineer.*?(?=\n|$)/);
   return match ? cleanText(match[0]) : null;
 };
 
@@ -257,15 +257,15 @@ async function fetchWebsiteContent() {
       });
 
       // Extract about section
-      const aboutText = extractMainContent($('div.App').text());
+      const aboutText = $('div.App').find('Text[fontSize="lg"]').first().text();
       console.log('About text extracted:', aboutText ? 'Yes' : 'No');
 
-      // Extract skills
+      // Extract skills with more specific selectors
       const skills = [];
       const skillSet = new Set();
-      $('div[class*="css-"]').each((i, el) => {
-        const name = $(el).find('div[class*="chakra-text"]').text().trim();
-        const level = parseInt($(el).find('div[class*="chakra-progress"]').attr('aria-valuenow') || '0');
+      $('div[class*="chakra-progress"]').each((i, el) => {
+        const name = $(el).prev('div[class*="chakra-text"]').text().trim();
+        const level = parseInt($(el).attr('aria-valuenow') || '0');
         if (name && !skillSet.has(name)) {
           skillSet.add(name);
           skills.push({
@@ -276,10 +276,10 @@ async function fetchWebsiteContent() {
       });
       console.log('Skills extracted:', skills.length);
 
-      // Extract experience
+      // Extract experience with more specific selectors
       const experiences = [];
       const experienceSet = new Set();
-      $('div[class*="css-"]').each((i, el) => {
+      $('section[data-section="experience"] div[class*="chakra-stack"]').each((i, el) => {
         const title = $(el).find('h2[class*="chakra-heading"]').text().trim();
         const company = $(el).find('div[class*="chakra-text"][class*="brand"]').text().trim();
         const period = $(el).find('div[class*="chakra-text"][class*="gray"]').text().trim();
@@ -295,16 +295,16 @@ async function fetchWebsiteContent() {
             title: cleanText(title),
             company: cleanText(company),
             period: cleanText(period),
-            description: description
+            description: description.map(d => cleanText(d))
           });
         }
       });
       console.log('Experiences extracted:', experiences.length);
 
-      // Extract education
+      // Extract education with more specific selectors
       const education = [];
       const educationSet = new Set();
-      $('div[class*="css-"]').each((i, el) => {
+      $('section[data-section="education"] div[class*="chakra-stack"]').each((i, el) => {
         const degree = $(el).find('h2[class*="chakra-heading"]').text().trim();
         const school = $(el).find('div[class*="chakra-text"][class*="brand"]').text().trim();
         const period = $(el).find('div[class*="chakra-text"][class*="gray"]').text().trim();
@@ -320,17 +320,17 @@ async function fetchWebsiteContent() {
             degree: cleanText(degree),
             school: cleanText(school),
             period: cleanText(period),
-            details: details
+            details: details.map(d => cleanText(d))
           });
         }
       });
       console.log('Education extracted:', education.length);
 
-      // Extract projects
+      // Extract projects with more specific selectors
       const projects = {};
-      $('div[class*="css-"]').each((i, el) => {
+      $('section[data-section="projects"] div[class*="chakra-stack"]').each((i, el) => {
         const title = $(el).find('h2[class*="chakra-heading"]').text().trim();
-        const description = $(el).find('div[class*="chakra-text"]').text().trim();
+        const description = $(el).find('div[class*="chakra-text"]').first().text().trim();
         const technologies = [];
         $(el).find('div[class*="chakra-stack"] div[class*="chakra-text"]').each((j, tech) => {
           const techName = $(tech).text().trim();
@@ -346,7 +346,7 @@ async function fetchWebsiteContent() {
           projects[title] = {
             name: cleanText(title),
             description: cleanText(description),
-            technologies: technologies,
+            technologies: technologies.map(t => cleanText(t)),
             links: links
           };
         }
