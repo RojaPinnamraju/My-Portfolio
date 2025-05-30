@@ -255,356 +255,163 @@ const extractEducation = ($) => {
 
 // Function to fetch page content with Puppeteer
 async function fetchPageContent(url, retries = 3) {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      console.log(`Fetching content from ${url} (attempt ${attempt}/${retries})...`);
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+  console.log(`Fetching content from ${url} (attempt ${4 - retries}/3)`);
+  let browser = null;
+  
+  try {
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: { width: 1280, height: 800 },
+      executablePath: await chromium.executablePath,
+      headless: true,
+      ignoreHTTPSErrors: true,
+      timeout: 30000 // Increase timeout to 30 seconds
+    });
 
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-          'Origin': 'https://my-portfolio-olw8.netlify.app',
-          'Referer': 'https://my-portfolio-olw8.netlify.app/'
-        },
-        timeout: 30000 // 30 second timeout
-      });
+    const page = await browser.newPage();
+    await page.setDefaultNavigationTimeout(30000); // Set navigation timeout to 30 seconds
+    await page.setDefaultTimeout(30000); // Set default timeout to 30 seconds
 
-      clearTimeout(timeout);
+    console.log('Navigating to page...');
+    await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
+    console.log('Page loaded successfully');
 
-      if (!response.ok) {
-        console.error(`HTTP error! status: ${response.status}`);
-        console.error('Response headers:', response.headers);
-        const errorText = await response.text();
-        console.error('Error response body:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
-      }
-
-      const html = await response.text();
-      console.log('Content fetched successfully');
-      console.log('HTML length:', html.length);
-      console.log('First 500 characters of HTML:', html.substring(0, 500));
-
-      // Load HTML into cheerio
-      const $ = cheerio.load(html);
-      
-      // Log all sections found
-      const sections = $('section[data-section]').map((i, el) => $(el).attr('data-section')).get();
-      console.log('Found sections:', sections);
-      
-      // Extract content based on page type
-      if (url.includes('/about') || url.includes('/#/about')) {
-        console.log('Processing about page...');
-        
-        // Extract about section
-        const aboutSection = $('section[data-section="about"]');
-        console.log('About section found:', aboutSection.length > 0);
-        const aboutText = aboutSection.find('Text, [class*="chakra-text"]').text();
-        console.log('About text:', aboutText);
-
-        // Extract experience
-        const experiences = await page.evaluate(() => {
-          const expSection = document.querySelector('section[data-section="experience"]');
-          if (!expSection) return [];
-
-          const items = [];
-          const experienceElements = expSection.querySelectorAll('.experience, [class*="experience"], [class*="chakra-stack"]');
-          
-          experienceElements.forEach(el => {
-            const title = el.querySelector('h2, [class*="chakra-heading"]')?.textContent.trim();
-            const company = el.querySelector('[class*="chakra-text"][color="brand.500"]')?.textContent.trim();
-            const period = el.querySelector('[class*="chakra-text"][font-size="sm"]')?.textContent.trim();
-            const description = Array.from(el.querySelectorAll('[class*="chakra-text"]'))
-              .map(item => item.textContent.trim())
-              .filter(text => text && !text.startsWith('•') && text !== title && text !== company && text !== period);
-
-            if (title && !items.some(item => item.title === title && item.company === company)) {
-              items.push({
-                title,
-                company: company || '',
-                period: period || '',
-                description: description || []
-              });
-            }
-          });
-
-          return items;
-        });
-        console.log('Experiences:', experiences);
-
-        // Extract education
-        const education = await page.evaluate(() => {
-          const eduSection = document.querySelector('section[data-section="education"]');
-          if (!eduSection) return [];
-
-          const items = [];
-          const educationElements = eduSection.querySelectorAll('.education, [class*="education"], [class*="chakra-stack"]');
-          
-          educationElements.forEach(el => {
-            const degree = el.querySelector('h2, [class*="chakra-heading"]')?.textContent.trim();
-            const school = el.querySelector('[class*="chakra-text"][color="brand.500"]')?.textContent.trim();
-            const period = el.querySelector('[class*="chakra-text"][font-size="sm"]')?.textContent.trim();
-            const details = Array.from(el.querySelectorAll('[class*="chakra-text"]'))
-              .map(item => item.textContent.trim())
-              .filter(text => text && !text.startsWith('•') && text !== degree && text !== school && text !== period);
-
-            if (degree && !items.some(item => item.degree === degree && item.school === school)) {
-              items.push({
-                degree,
-                school: school || '',
-                period: period || '',
-                details: details || []
-              });
-            }
-          });
-
-          return items;
-        });
-        console.log('Education:', education);
-
-        // Extract skills
-        const skills = await page.evaluate(() => {
-          const skillsSection = document.querySelector('section[data-section="skills"]');
-          if (!skillsSection) return [];
-
-          const items = [];
-          const skillElements = skillsSection.querySelectorAll('.skill, [class*="skill"], [class*="Skill"], [class*="chakra-stack"]');
-          
-          skillElements.forEach(el => {
-            const name = el.querySelector('[class*="chakra-text"][font-weight="medium"]')?.textContent.trim();
-            const level = el.querySelector('[class*="chakra-progress"]')?.getAttribute('value') || 0;
-
-            if (name && !items.some(item => item.name === name)) {
-              items.push({
-                name,
-                level: parseInt(level) || 0
-              });
-            }
-          });
-
-          return items;
-        });
-        console.log('Skills:', skills);
-
-        const content = {
-          about: cleanText(aboutText),
-          experience: experiences,
-          education: education,
-          skills: skills
-        };
-        console.log('Extracted about page content:', content);
-        return content;
-      } else if (url.includes('/projects') || url.includes('/#/projects')) {
-        console.log('Processing projects page...');
-        const projects = {};
-        $('.project, [class*="project"], [class*="chakra-stack"]').each((i, el) => {
-          const title = $(el).find('[class*="chakra-heading"], [class*="chakra-text"][font-weight="600"]').text();
-          const description = $(el).find('[class*="chakra-text"]').text();
-          if (title) {
-            projects[cleanText(title)] = cleanText(description);
-          }
-        });
-        console.log('Extracted projects:', projects);
-        return projects;
-      } else if (url.includes('/contact') || url.includes('/#/contact')) {
-        console.log('Processing contact page...');
-        const contact = {};
-        $('.contact-item, [class*="contact"], [class*="chakra-stack"]').each((i, el) => {
-          const type = $(el).find('[class*="chakra-text"][font-weight="600"]').text();
-          const value = $(el).find('[class*="chakra-text"]').text();
-          if (type) {
-            contact[cleanText(type)] = cleanText(value);
-          }
-        });
-        console.log('Extracted contact info:', contact);
-        return contact;
-      }
-
-      return null;
-    } catch (error) {
-      console.error(`Error fetching ${url} (attempt ${attempt}/${retries}):`, error);
-      if (attempt === retries) {
-        throw error;
-      }
-      // Wait before retrying with exponential backoff
-      await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+    // Wait for content to be rendered
+    await page.waitForTimeout(2000);
+    
+    const content = await page.content();
+    console.log('Content fetched successfully');
+    return content;
+  } catch (error) {
+    console.error('Error fetching page content:', error);
+    if (retries > 1) {
+      console.log(`Retrying... (${retries - 1} attempts remaining)`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return fetchPageContent(url, retries - 1);
+    }
+    throw new Error(`Failed to fetch content after 3 attempts: ${error.message}`);
+  } finally {
+    if (browser) {
+      await browser.close();
     }
   }
 }
 
 // Function to fetch website content with caching
 async function fetchWebsiteContent() {
-  console.log('Fetching website content...');
-  let browser;
+  console.log('Starting website content fetch...');
+  const url = `${portfolioUrl}/#/about`;
+  console.log('Fetching from URL:', url);
+
   try {
-    // Configure Puppeteer based on environment
-    const launchOptions = {
-      headless: 'new',
-      args: chromium.args,
-      executablePath: process.env.NODE_ENV === 'production' 
-        ? await chromium.executablePath()
-        : undefined,
-      ignoreHTTPSErrors: true
+    const html = await fetchPageContent(url);
+    const $ = cheerio.load(html);
+    
+    // Extract about section
+    const aboutSection = $('section[data-section="about"]');
+    const aboutText = aboutSection.find('Text, [class*="chakra-text"]').text();
+    console.log('About text extracted:', aboutText ? 'Yes' : 'No');
+
+    // Extract skills
+    const skills = [];
+    $('.skill, [class*="skill"], [class*="Skill"], [class*="chakra-stack"]').each((i, el) => {
+      const name = $(el).find('Text, [class*="chakra-text"], [class*="chakra-heading"]').text();
+      const level = $(el).find('progress, [class*="chakra-progress"]').attr('value') || 0;
+      if (name) {
+        skills.push({
+          name: cleanText(name),
+          level: parseInt(level) || 0
+        });
+      }
+    });
+    console.log('Skills extracted:', skills.length);
+
+    // Extract experience
+    const experiences = [];
+    $('.experience, [class*="experience"], [class*="Experience"]').each((i, el) => {
+      const title = $(el).find('.title, [class*="title"]').text();
+      const company = $(el).find('.company, [class*="company"]').text();
+      const period = $(el).find('.period, [class*="period"]').text();
+      const description = [];
+      $(el).find('.description li, .description p, [class*="description"] li, [class*="description"] p').each((j, item) => {
+        const text = $(item).text().trim();
+        if (text) {
+          description.push(cleanText(text.replace(/^•\s*/, '')));
+        }
+      });
+      
+      if (title) {
+        experiences.push({
+          title: cleanText(title),
+          company: cleanText(company),
+          period: cleanText(period),
+          description: description
+        });
+      }
+    });
+    console.log('Experiences extracted:', experiences.length);
+
+    // Extract education
+    const education = [];
+    $('.education, [class*="education"], [class*="Education"], [class*="chakra-stack"]').each((i, el) => {
+      const degree = $(el).find('.degree, [class*="degree"]').text();
+      const school = $(el).find('.school, [class*="school"]').text();
+      const period = $(el).find('.period, [class*="period"]').text();
+      const details = [];
+      $(el).find('.details li, .details p, [class*="details"] li, [class*="details"] p').each((j, item) => {
+        const text = $(item).text().trim();
+        if (text) {
+          details.push(cleanText(text.replace(/^•\s*/, '')));
+        }
+      });
+      
+      if (degree) {
+        education.push({
+          degree: cleanText(degree),
+          school: cleanText(school),
+          period: cleanText(period),
+          details: details
+        });
+      }
+    });
+    console.log('Education extracted:', education.length);
+
+    // Extract projects
+    const projects = {};
+    $('.project, [class*="project"], [class*="chakra-stack"]').each((i, el) => {
+      const title = $(el).find('[class*="chakra-heading"], [class*="chakra-text"][font-weight="600"]').text();
+      const description = $(el).find('[class*="chakra-text"]').text();
+      if (title) {
+        projects[cleanText(title)] = cleanText(description);
+      }
+    });
+    console.log('Projects extracted:', Object.keys(projects).length);
+
+    // Extract contact
+    const contact = {};
+    $('.contact-item, [class*="contact"], [class*="chakra-stack"]').each((i, el) => {
+      const type = $(el).find('[class*="chakra-text"][font-weight="600"]').text();
+      const value = $(el).find('[class*="chakra-text"]').text();
+      if (type) {
+        contact[cleanText(type)] = cleanText(value);
+      }
+    });
+    console.log('Contact info extracted:', Object.keys(contact).length);
+
+    const content = {
+      about: cleanText(aboutText),
+      experience: experiences,
+      education: education,
+      skills: skills,
+      projects: projects,
+      contact: contact
     };
 
-    browser = await puppeteer.launch(launchOptions);
-    const page = await browser.newPage();
-    
-    // Set a longer timeout
-    await page.setDefaultNavigationTimeout(30000);
-    
-    // Navigate to the main page
-    console.log(`Navigating to ${portfolioUrl}...`);
-    await page.goto(portfolioUrl, { 
-      waitUntil: 'networkidle0',
-      timeout: 30000 
-    });
-
-    // Wait for React to load
-    console.log('Waiting for React to load...');
-    await page.waitForFunction(() => {
-      return document.querySelector('#root') !== null;
-    }, { timeout: 10000 });
-
-    // Add a small delay to ensure content is rendered
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Navigate to each section and extract content
-    const sections = ['about', 'projects', 'contact'];
-    const content = {};
-
-    for (const section of sections) {
-      console.log(`Navigating to ${section} section...`);
-      await page.goto(`${portfolioUrl}/#/${section}`, {
-        waitUntil: 'networkidle0',
-        timeout: 30000
-      });
-
-      // Wait for content to be rendered
-      await page.waitForSelector('section[data-section]', { timeout: 10000 });
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      console.log(`Extracting ${section} content...`);
-      const sectionContent = await page.evaluate((sectionName) => {
-        const getText = (selector) => {
-          const element = document.querySelector(selector);
-          return element ? element.textContent.trim() : null;
-        };
-
-        const getSectionContent = (sectionName) => {
-          const section = document.querySelector(`section[data-section="${sectionName}"]`);
-          return section ? section.textContent.trim() : null;
-        };
-
-        const getSkills = () => {
-          const skills = [];
-          document.querySelectorAll('.skill').forEach(skill => {
-            const name = skill.querySelector('.chakra-text')?.textContent.trim();
-            const level = skill.querySelector('.chakra-progress')?.getAttribute('value');
-            if (name) {
-              skills.push({ name, level: parseInt(level) || 0 });
-            }
-          });
-          return skills;
-        };
-
-        const getExperiences = () => {
-          const experiences = [];
-          document.querySelectorAll('.experience').forEach(exp => {
-            const title = exp.querySelector('.title')?.textContent.trim();
-            const company = exp.querySelector('.company')?.textContent.trim();
-            const period = exp.querySelector('.period')?.textContent.trim();
-            const description = Array.from(exp.querySelectorAll('.description .chakra-text'))
-              .map(el => el.textContent.trim())
-              .filter(text => text);
-            
-            if (title) {
-              experiences.push({ title, company, period, description });
-            }
-          });
-          return experiences;
-        };
-
-        const getEducation = () => {
-          const education = [];
-          document.querySelectorAll('.education').forEach(edu => {
-            const degree = edu.querySelector('.degree')?.textContent.trim();
-            const school = edu.querySelector('.school')?.textContent.trim();
-            const period = edu.querySelector('.period')?.textContent.trim();
-            const details = Array.from(edu.querySelectorAll('.details .chakra-text'))
-              .map(el => el.textContent.trim())
-              .filter(text => text);
-            
-            if (degree) {
-              education.push({ degree, school, period, details });
-            }
-          });
-          return education;
-        };
-
-        const getProjects = () => {
-          const projects = {};
-          document.querySelectorAll('[data-project]').forEach(project => {
-            const id = project.getAttribute('data-project');
-            const name = project.querySelector('.name')?.textContent.trim();
-            const description = project.querySelector('.description')?.textContent.trim();
-            const technologies = Array.from(project.querySelectorAll('.technology'))
-              .map(el => el.textContent.trim());
-            const links = Array.from(project.querySelectorAll('.link'))
-              .map(el => el.href);
-            
-            if (name) {
-              projects[id] = { name, description, technologies, links };
-            }
-          });
-          return projects;
-        };
-
-        const getContact = () => {
-          const contact = {};
-          document.querySelectorAll('[data-contact]').forEach(el => {
-            const type = el.getAttribute('data-contact');
-            contact[type] = el.textContent.trim();
-          });
-          return contact;
-        };
-
-        switch (sectionName) {
-          case 'about':
-            return {
-              about: getSectionContent('about'),
-              experience: getExperiences(),
-              education: getEducation(),
-              skills: getSkills()
-            };
-          case 'projects':
-            return { projects: getProjects() };
-          case 'contact':
-            return { contact: getContact() };
-          default:
-            return {};
-        }
-      }, section);
-
-      Object.assign(content, sectionContent);
-    }
-
-    console.log('Content extracted successfully');
-    await browser.close();
+    console.log('Content extraction completed successfully');
     return content;
   } catch (error) {
-    console.error('Error fetching website content:', error);
-    if (browser) {
-      await browser.close();
-    }
-    throw error;
+    console.error('Error in fetchWebsiteContent:', error);
+    throw new Error(`Failed to fetch content: ${error.message}`);
   }
 }
 
