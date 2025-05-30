@@ -57,19 +57,33 @@ async function fetchPageContent(url, retries = 3) {
       method: 'GET',
       headers: {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      },
+      redirect: 'follow',
+      follow: 5
     });
 
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers.raw());
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`HTTP error! status: ${response.status}, statusText: ${response.statusText}`);
     }
 
     const html = await response.text();
-    console.log('Content fetched successfully');
+    console.log('Content fetched successfully, length:', html.length);
     return html;
   } catch (error) {
     console.error('Error fetching page content:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      url: url
+    });
+    
     if (retries > 1) {
       console.log(`Retrying... (${retries - 1} attempts remaining)`);
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -82,12 +96,19 @@ async function fetchPageContent(url, retries = 3) {
 // Function to fetch website content with caching
 async function fetchWebsiteContent() {
   console.log('Starting website content fetch...');
-  const url = `${portfolioUrl}`;  // Remove the /#/about fragment
+  const url = `${portfolioUrl}/index.html`;  // Try with explicit index.html
   console.log('Fetching from URL:', url);
 
   try {
     const html = await fetchPageContent(url);
     const $ = cheerio.load(html);
+    
+    // Log the HTML structure for debugging
+    console.log('HTML structure:', {
+      title: $('title').text(),
+      bodyLength: $('body').text().length,
+      sections: $('section').length
+    });
     
     // Extract about section
     const aboutSection = $('section[data-section="about"]');
