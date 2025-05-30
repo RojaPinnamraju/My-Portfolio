@@ -111,7 +111,7 @@ async function fetchPageContent(url, retries = 3) {
 // Function to fetch website content with caching
 async function fetchWebsiteContent() {
   console.log('Starting website content fetch...');
-  const url = `${portfolioUrl}/about`;  // Try with /about path
+  const url = portfolioUrl;  // Use base URL without any path
   console.log('Fetching from URL:', url);
 
   try {
@@ -138,7 +138,9 @@ async function fetchWebsiteContent() {
       '.about',
       'main',
       'article',
-      '[role="main"]'
+      '[role="main"]',
+      '#root',  // Add root element as a fallback
+      'body'    // Add body as a last resort
     ];
 
     for (const selector of aboutSelectors) {
