@@ -173,6 +173,14 @@ async function fetchPageContent(url, retries = 3) {
       // Additional wait for dynamic content
       await page.waitForTimeout(5000);
 
+      // Wait for specific sections to be rendered
+      await Promise.all([
+        page.waitForSelector('section[data-section="experience"]', { timeout: 5000 }).catch(() => console.log('Experience section not found')),
+        page.waitForSelector('section[data-section="education"]', { timeout: 5000 }).catch(() => console.log('Education section not found')),
+        page.waitForSelector('section[data-section="projects"]', { timeout: 5000 }).catch(() => console.log('Projects section not found')),
+        page.waitForSelector('section[data-section="expertise"]', { timeout: 5000 }).catch(() => console.log('Expertise section not found'))
+      ]);
+
       // Log the actual content for debugging
       const content = await page.evaluate(() => {
         const app = document.querySelector('div.App');
@@ -244,7 +252,8 @@ async function fetchWebsiteContent() {
       });
 
       // Extract about section
-      const aboutText = $('div.App').find('Text[fontSize="lg"]').first().text();
+      const aboutText = $('div.App').find('Text[fontSize="lg"]').first().text() || 
+                       $('div.App').find('p.chakra-text').first().text();
       console.log('About text extracted:', aboutText ? 'Yes' : 'No');
 
       // Extract skills
