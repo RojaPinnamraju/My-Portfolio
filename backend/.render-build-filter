@@ -1,0 +1,15 @@
+# Include paths that should trigger a new build
+include:
+  - backend/**/*.js
+  - backend/**/*.json
+  - backend/**/*.env
+
+# Ignore paths that shouldn't trigger a new build
+ignore:
+  - backend/node_modules/**
+  - backend/.git/**
+  - backend/.env.local
+  - backend/.env.development
+  - backend/.env.test
+  - backend/coverage/**
+  - backend/logs/** 
