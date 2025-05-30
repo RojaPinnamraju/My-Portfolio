@@ -9,7 +9,7 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 3000;
 const portfolioUrl = process.env.NODE_ENV === 'production' 
-  ? 'https://my-portfolio-olw8.onrender.com'
+  ? 'https://my-portfolio-olw8.netlify.app'
   : (process.env.PORTFOLIO_URL || 'http://localhost:5173');
 
 // Cache configuration
