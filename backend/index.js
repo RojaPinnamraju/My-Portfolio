@@ -173,28 +173,18 @@ async function fetchPageContent(url, retries = 3) {
       // Additional wait for dynamic content
       await page.waitForTimeout(5000);
 
-      // Check if sections exist and log their presence
-      const sections = await page.evaluate(() => {
-        const results = {};
-        // Check for both data-section attributes and class names
-        ['section[data-section="about"]', 'section[data-section="experience"]', 'section[data-section="education"]',
-         'div[class*="about"]', 'div[class*="experience"]', 'div[class*="education"]'].forEach(selector => {
-          results[selector] = !!document.querySelector(selector);
+      // Log all available classes for debugging
+      const classes = await page.evaluate(() => {
+        const elements = document.querySelectorAll('*');
+        const classSet = new Set();
+        elements.forEach(el => {
+          if (el.className) {
+            el.className.split(' ').forEach(cls => classSet.add(cls));
+          }
         });
-        return results;
+        return Array.from(classSet);
       });
-      console.log('Section presence:', sections);
-
-      // Log the actual HTML structure for debugging
-      const htmlStructure = await page.evaluate(() => {
-        const structure = {};
-        ['div.App', 'main', 'section', 'div[class*="about"]', 'div[class*="experience"]', 'div[class*="education"]'].forEach(selector => {
-          const elements = document.querySelectorAll(selector);
-          structure[selector] = elements.length;
-        });
-        return structure;
-      });
-      console.log('HTML structure:', htmlStructure);
+      console.log('Available classes:', classes);
 
       // Log the actual content for debugging
       const content = await page.evaluate(() => {
@@ -202,7 +192,7 @@ async function fetchPageContent(url, retries = 3) {
         return app ? app.innerHTML : 'No App element found';
       });
       console.log('App content length:', content.length);
-      console.log('First 500 chars of content:', content.substring(0, 500));
+      console.log('First 1000 chars of content:', content.substring(0, 1000));
     } catch (error) {
       console.log('Hydration check timed out, proceeding with available content:', error.message);
     }
@@ -273,7 +263,7 @@ async function fetchWebsiteContent() {
       // Extract skills
       const skills = [];
       const skillSet = new Set();
-      $('div[class*="chakra-stack"]').each((i, el) => {
+      $('div[class*="css-"]').each((i, el) => {
         const name = $(el).find('div[class*="chakra-text"]').text().trim();
         const level = parseInt($(el).find('div[class*="chakra-progress"]').attr('aria-valuenow') || '0');
         if (name && !skillSet.has(name)) {
@@ -289,7 +279,7 @@ async function fetchWebsiteContent() {
       // Extract experience
       const experiences = [];
       const experienceSet = new Set();
-      $('div[class*="chakra-stack"]').each((i, el) => {
+      $('div[class*="css-"]').each((i, el) => {
         const title = $(el).find('h2[class*="chakra-heading"]').text().trim();
         const company = $(el).find('div[class*="chakra-text"][class*="brand"]').text().trim();
         const period = $(el).find('div[class*="chakra-text"][class*="gray"]').text().trim();
@@ -314,7 +304,7 @@ async function fetchWebsiteContent() {
       // Extract education
       const education = [];
       const educationSet = new Set();
-      $('div[class*="chakra-stack"]').each((i, el) => {
+      $('div[class*="css-"]').each((i, el) => {
         const degree = $(el).find('h2[class*="chakra-heading"]').text().trim();
         const school = $(el).find('div[class*="chakra-text"][class*="brand"]').text().trim();
         const period = $(el).find('div[class*="chakra-text"][class*="gray"]').text().trim();
@@ -338,7 +328,7 @@ async function fetchWebsiteContent() {
 
       // Extract projects
       const projects = {};
-      $('div[class*="chakra-stack"]').each((i, el) => {
+      $('div[class*="css-"]').each((i, el) => {
         const title = $(el).find('h2[class*="chakra-heading"]').text().trim();
         const description = $(el).find('div[class*="chakra-text"]').text().trim();
         const technologies = [];
@@ -365,7 +355,7 @@ async function fetchWebsiteContent() {
 
       // Extract areas of expertise
       const expertise = [];
-      $('div[class*="chakra-stack"]').each((i, el) => {
+      $('div[class*="css-"]').each((i, el) => {
         const title = $(el).find('div[class*="chakra-text"][class*="fontWeight"]').text().trim();
         const text = $(el).find('div[class*="chakra-text"][class*="gray"]').text().trim();
         if (title && text) {
