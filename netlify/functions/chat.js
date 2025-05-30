@@ -7,18 +7,18 @@ const groq = new Groq({
 });
 
 // Add cache configuration at the top of the file
-const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes instead of 1 hour
 let contentCache = null;
 let lastFetchTime = null;
 let isFetching = false;
 let fetchPromise = null;
 
 // Function to fetch website content
-async function fetchWebsiteContent() {
+async function fetchWebsiteContent(forceRefresh = false) {
   console.log('Starting content fetch...');
   
-  // Check if we have valid cached content
-  if (contentCache && lastFetchTime && (Date.now() - lastFetchTime < CACHE_DURATION)) {
+  // Check if we have valid cached content and not forcing refresh
+  if (!forceRefresh && contentCache && lastFetchTime && (Date.now() - lastFetchTime < CACHE_DURATION)) {
     console.log('Returning cached content');
     return contentCache;
   }
@@ -163,7 +163,8 @@ export const handler = async function(event, context) {
     console.log('Fetching website content...');
     let content;
     try {
-      content = await fetchWebsiteContent();
+      // Force refresh content to get latest updates
+      content = await fetchWebsiteContent(true);
       console.log('Content fetched successfully');
     } catch (error) {
       console.error('Failed to fetch content:', error);
