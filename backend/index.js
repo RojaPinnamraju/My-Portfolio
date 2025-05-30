@@ -96,7 +96,7 @@ async function fetchPageContent(url, retries = 3) {
 // Function to fetch website content with caching
 async function fetchWebsiteContent() {
   console.log('Starting website content fetch...');
-  const url = `${portfolioUrl}/index.html`;  // Try with explicit index.html
+  const url = `${portfolioUrl}`;  // Use the base URL without any path
   console.log('Fetching from URL:', url);
 
   try {
@@ -107,12 +107,29 @@ async function fetchWebsiteContent() {
     console.log('HTML structure:', {
       title: $('title').text(),
       bodyLength: $('body').text().length,
-      sections: $('section').length
+      sections: $('section').length,
+      metaDescription: $('meta[name="description"]').attr('content')
     });
-    
-    // Extract about section
-    const aboutSection = $('section[data-section="about"]');
-    const aboutText = aboutSection.find('Text, [class*="chakra-text"]').text();
+
+    // Try different selectors for about section
+    let aboutText = '';
+    const aboutSelectors = [
+      'section[data-section="about"]',
+      '[class*="about"]',
+      '[class*="About"]',
+      '#about',
+      '.about'
+    ];
+
+    for (const selector of aboutSelectors) {
+      const section = $(selector);
+      if (section.length > 0) {
+        aboutText = section.find('Text, [class*="chakra-text"], p, div').text();
+        console.log(`Found about section using selector: ${selector}`);
+        break;
+      }
+    }
+
     console.log('About text extracted:', aboutText ? 'Yes' : 'No');
 
     // Extract skills
