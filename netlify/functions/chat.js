@@ -7,7 +7,7 @@ const groq = new Groq({
 });
 
 // Add cache configuration at the top of the file
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
 let contentCache = null;
 let lastFetchTime = null;
 let isFetching = false;
@@ -44,7 +44,7 @@ async function fetchWebsiteContent() {
         console.log('Making request to:', url);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // Reduced from 12000
 
         const response = await fetch(url, {
           method: 'GET',
@@ -80,15 +80,7 @@ async function fetchWebsiteContent() {
             console.log('Returning expired cached content due to error');
             return contentCache;
           }
-          // Return default content if no cache is available
-          return {
-            about: 'Software Engineer and AI enthusiast',
-            experience: [],
-            education: [],
-            skills: [],
-            projects: {},
-            contact: {}
-          };
+          throw new Error('Failed to fetch content after all retries');
         }
         
         // Wait before retrying with exponential backoff
@@ -106,13 +98,7 @@ async function fetchWebsiteContent() {
 // Chat endpoint
 export const handler = async function(event, context) {
   console.log('Chat function invoked');
-  console.log('Event:', {
-    httpMethod: event.httpMethod,
-    path: event.path,
-    headers: event.headers,
-    queryStringParameters: event.queryStringParameters
-  });
-
+  
   // Enable CORS
   const headers = {
     'Content-Type': 'application/json',
@@ -124,7 +110,6 @@ export const handler = async function(event, context) {
 
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
-    console.log('Handling OPTIONS request');
     return {
       statusCode: 200,
       headers,
@@ -133,14 +118,7 @@ export const handler = async function(event, context) {
   }
 
   try {
-    console.log('Received request:', {
-      method: event.httpMethod,
-      path: event.path,
-      headers: event.headers
-    });
-
     if (!event.body) {
-      console.error('No request body received');
       return {
         statusCode: 400,
         headers,
@@ -149,10 +127,7 @@ export const handler = async function(event, context) {
     }
 
     const { message } = JSON.parse(event.body);
-    console.log('Received message:', message);
-
     if (!message) {
-      console.error('No message in request body');
       return {
         statusCode: 400,
         headers,
@@ -161,7 +136,6 @@ export const handler = async function(event, context) {
     }
 
     if (!process.env.GROQ_API_KEY) {
-      console.error('GROQ_API_KEY not found in environment variables');
       return {
         statusCode: 500,
         headers,
@@ -259,57 +233,41 @@ When responding:
 
 18. If you're unsure about any information, respond with: "I don't have that information in my portfolio."`;
 
-    console.log('Creating chat completion...');
-    try {
-      const completion = await groq.chat.completions.create({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: message }
-        ],
-        model: 'llama3-70b-8192',
-        temperature: 0.7,
-        max_tokens: 1024
-      });
-
-      console.log('Groq API response received');
-
-      if (!completion.choices?.[0]?.message?.content) {
-        console.error('No response content from Groq API');
-        throw new Error('No response content from Groq API');
-      }
-
-      console.log('Sending response to client');
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ response: completion.choices[0].message.content })
-      };
-    } catch (groqError) {
-      console.error('Groq API Error:', groqError);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ 
-          response: "I'm having trouble processing your request right now. Please try again in a few moments."
-        })
-      };
-    }
-  } catch (error) {
-    console.error('Error in chat endpoint:', error);
-    console.error('Error stack:', error.stack);
-    console.error('Error details:', {
-      name: error.name,
-      message: error.message,
-      code: error.code,
-      status: error.status
+    // Create chat completion with timeout
+    const completionPromise = groq.chat.completions.create({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: message }
+      ],
+      model: 'llama3-70b-8192',
+      temperature: 0.7,
+      max_tokens: 1024
     });
 
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Chat completion timeout')), 5000);
+    });
+
+    const completion = await Promise.race([completionPromise, timeoutPromise]);
+
+    if (!completion.choices?.[0]?.message?.content) {
+      throw new Error('No response content from Groq API');
+    }
+
     return {
-      statusCode: 500,
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ response: completion.choices[0].message.content })
+    };
+  } catch (error) {
+    console.error('Error in chat endpoint:', error);
+    
+    // Return a user-friendly error message
+    return {
+      statusCode: 200,
       headers,
       body: JSON.stringify({ 
-        error: 'Sorry, I encountered an error. Please try again.',
-        details: error.message
+        response: "I'm having trouble processing your request right now. Please try again in a few moments."
       })
     };
   }

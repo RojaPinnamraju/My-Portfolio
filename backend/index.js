@@ -18,7 +18,7 @@ console.log('Configuration:', {
 });
 
 // Cache configuration
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
 let contentCache = null;
 let lastFetchTime = null;
 let isFetching = false;
@@ -108,7 +108,7 @@ async function fetchPageContent(url, retries = 3) {
         '--disable-site-isolation-trials'
       ],
       headless: 'new',
-      timeout: 15000 // 15 second launch timeout
+      timeout: 10000 // Reduced from 15000 to 10000
     };
 
     console.log('Launching browser with options:', JSON.stringify(launchOptions, null, 2));
@@ -116,17 +116,15 @@ async function fetchPageContent(url, retries = 3) {
     const page = await browser.newPage();
 
     // Set shorter timeouts for faster response
-    page.setDefaultNavigationTimeout(12000);
-    page.setDefaultTimeout(12000);
+    page.setDefaultNavigationTimeout(8000); // Reduced from 12000
+    page.setDefaultTimeout(8000); // Reduced from 12000
 
     // Enable request interception for debugging
     await page.setRequestInterception(true);
     page.on('request', request => {
       const resourceType = request.resourceType();
-      console.log(`Intercepted request: ${request.url()} (${resourceType})`);
       // Block unnecessary resources to speed up loading
       if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
-        console.log(`Blocking resource: ${resourceType}`);
         request.abort();
       } else {
         request.continue();
@@ -141,15 +139,7 @@ async function fetchPageContent(url, retries = 3) {
     console.log('Navigating to page...');
     await page.goto(url, { 
       waitUntil: ['domcontentloaded', 'networkidle0'],
-      timeout: 12000 
-    });
-
-    // Wait for Vite's client to load
-    console.log('Waiting for Vite client...');
-    await page.waitForFunction(() => {
-      return window.$RefreshReg$ !== undefined;
-    }, { timeout: 5000 }).catch(() => {
-      console.log('Vite client not found, continuing anyway');
+      timeout: 8000 // Reduced from 12000
     });
 
     // Wait for React to hydrate with a more lenient check
@@ -157,49 +147,16 @@ async function fetchPageContent(url, retries = 3) {
     try {
       await page.waitForFunction(() => {
         const root = document.querySelector('#root');
-        if (!root || !root.children.length) {
-          console.log('Root element not found or empty');
-          return false;
-        }
-        
-        // Check if any content is loaded
-        const hasContent = root.textContent.trim().length > 0;
-        if (hasContent) {
-          console.log('Found content in root element');
-          return true;
-        }
-        
-        // Check for specific sections as fallback
-        const sections = [
-          'about',
-          'experience',
-          'education',
-          'skills',
-          'projects'
-        ];
-        
-        const foundSection = sections.some(section => {
-          const element = document.querySelector(`section[data-section="${section}"]`);
-          const hasContent = element && element.textContent.trim().length > 0;
-          if (hasContent) {
-            console.log(`Found content in section: ${section}`);
-          }
-          return hasContent;
-        });
-
-        if (!foundSection) {
-          console.log('No sections found with content');
-        }
-        return foundSection;
-      }, { timeout: 12000 });
+        return root && root.textContent.trim().length > 0;
+      }, { timeout: 8000 }); // Reduced from 12000
     } catch (error) {
       console.log('Hydration check timed out, proceeding with available content');
     }
 
     // Wait for any dynamic content
     console.log('Waiting for dynamic content...');
-    await page.waitForTimeout(2000);
-
+    await page.waitForTimeout(1000); // Reduced from 2000
+    
     // Get the page content
     const html = await page.content();
     console.log('Content fetched successfully, length:', html.length);
@@ -214,7 +171,7 @@ async function fetchPageContent(url, retries = 3) {
     }
     
     if (retries > 1) {
-      const delay = (4 - retries) * 2000; // Exponential backoff
+      const delay = (4 - retries) * 1000; // Reduced delay
       console.log(`Retrying in ${delay}ms... (${retries - 1} attempts remaining)`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return fetchPageContent(url, retries - 1);
