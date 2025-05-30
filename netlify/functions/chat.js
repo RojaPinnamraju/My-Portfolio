@@ -76,6 +76,7 @@ export const handler = async function(event, context) {
 
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
+    console.log('Handling OPTIONS request');
     return {
       statusCode: 200,
       headers,
@@ -124,6 +125,7 @@ export const handler = async function(event, context) {
     let content;
     try {
       content = await fetchWebsiteContent();
+      console.log('Content fetched successfully');
     } catch (error) {
       console.error('Error fetching content:', error);
       // Return a default response if content fetch fails
@@ -232,10 +234,14 @@ When responding:
         max_tokens: 1024
       });
 
+      console.log('Groq API response received');
+
       if (!completion.choices?.[0]?.message?.content) {
+        console.error('No response content from Groq API');
         throw new Error('No response content from Groq API');
       }
 
+      console.log('Sending response to client');
       return {
         statusCode: 200,
         headers,
@@ -251,7 +257,6 @@ When responding:
         })
       };
     }
-
   } catch (error) {
     console.error('Error in chat endpoint:', error);
     console.error('Error stack:', error.stack);
@@ -262,23 +267,12 @@ When responding:
       status: error.status
     });
 
-    // Check for specific error types
-    let errorMessage = 'Sorry, I encountered an error. Please try again.';
-    if (error.message.includes('GROQ_API_KEY')) {
-      errorMessage = 'API key is not configured. Please check your environment variables.';
-    } else if (error.message.includes('model')) {
-      errorMessage = 'The AI model is currently unavailable. Please try again later.';
-    } else if (error.message.includes('timeout')) {
-      errorMessage = 'The request timed out. Please try again.';
-    }
-
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ 
-        error: errorMessage,
-        details: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        error: 'Sorry, I encountered an error. Please try again.',
+        details: error.message
       })
     };
   }
