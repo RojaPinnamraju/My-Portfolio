@@ -22,7 +22,7 @@ async function fetchWebsiteContent() {
     console.log('Making request to:', url);
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000); // 25 second timeout
+    const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout to allow for function cleanup
 
     const response = await fetch(url, {
       method: 'GET',
@@ -31,7 +31,9 @@ async function fetchWebsiteContent() {
         'Content-Type': 'application/json',
         'Origin': 'https://rojapinnamraju-portfolio.netlify.app'
       },
-      signal: controller.signal
+      signal: controller.signal,
+      // Add fetch timeout
+      timeout: 7000 // 7 second fetch timeout
     });
     
     clearTimeout(timeout);
@@ -56,7 +58,7 @@ async function fetchWebsiteContent() {
       code: error.code
     });
     if (error.name === 'AbortError') {
-      throw new Error('Request timed out after 25 seconds');
+      throw new Error('Request timed out after 8 seconds');
     }
     return {
       about: 'No information available',
@@ -235,6 +237,10 @@ When responding:
 18. If you're unsure about any information, respond with: "I don't have that information in my portfolio."`;
 
     console.log('Creating chat completion...');
+    // Add timeout for Groq API call
+    const groqController = new AbortController();
+    const groqTimeout = setTimeout(() => groqController.abort(), 8000);
+
     try {
       const completion = await groq.chat.completions.create({
         messages: [
@@ -244,9 +250,10 @@ When responding:
         model: 'llama3-70b-8192',
         temperature: 0.7,
         max_tokens: 1024,
+        signal: groqController.signal
       });
-      console.log('Chat completion created successfully');
-      console.log('Response:', completion.choices[0]?.message?.content);
+
+      clearTimeout(groqTimeout);
 
       if (!completion.choices?.[0]?.message?.content) {
         throw new Error('No response content from Groq API');
@@ -258,14 +265,15 @@ When responding:
         body: JSON.stringify({ response: completion.choices[0].message.content })
       };
     } catch (groqError) {
+      clearTimeout(groqTimeout);
       console.error('Groq API Error:', groqError);
-      console.error('Error details:', {
-        name: groqError.name,
-        message: groqError.message,
-        code: groqError.code,
-        status: groqError.status
-      });
-      throw groqError;
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          response: "I'm having trouble processing your request right now. Please try again in a few moments."
+        })
+      };
     }
 
   } catch (error) {

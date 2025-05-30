@@ -76,16 +76,16 @@ async function fetchPageContent(url, retries = 3) {
         '--disable-site-isolation-trials'
       ],
       headless: 'new',
-      timeout: 30000
+      timeout: 5000 // 5 second launch timeout
     };
 
     console.log('Launching browser with options:', launchOptions);
     browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
 
-    // Set a longer timeout for navigation
-    page.setDefaultNavigationTimeout(60000);
-    page.setDefaultTimeout(60000);
+    // Set shorter timeouts for faster response
+    page.setDefaultNavigationTimeout(5000);
+    page.setDefaultTimeout(5000);
 
     // Enable request interception for debugging
     await page.setRequestInterception(true);
@@ -107,7 +107,7 @@ async function fetchPageContent(url, retries = 3) {
     console.log('Navigating to page...');
     await page.goto(url, { 
       waitUntil: ['networkidle0', 'domcontentloaded'],
-      timeout: 60000 
+      timeout: 5000 
     });
 
     // Wait for React to hydrate with a more specific check
@@ -128,11 +128,11 @@ async function fetchPageContent(url, retries = 3) {
         const element = document.querySelector(`section[data-section="${section}"]`);
         return element && element.textContent.trim().length > 0;
       });
-    }, { timeout: 30000 });
+    }, { timeout: 5000 });
 
     // Wait for any dynamic content
     console.log('Waiting for dynamic content...');
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(1000);
 
     // Get the page content
     const html = await page.content();
@@ -148,7 +148,7 @@ async function fetchPageContent(url, retries = 3) {
     
     if (retries > 1) {
       console.log(`Retrying... (${retries - 1} attempts remaining)`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       return fetchPageContent(url, retries - 1);
     }
     throw new Error(`Failed to fetch content after 3 attempts: ${error.message}`);
@@ -358,10 +358,14 @@ app.get('/api/content', async (req, res) => {
       return res.json(contentCache);
     }
 
-    res.status(500).json({ 
-      error: 'Failed to fetch content',
-      details: error.message,
-      timestamp: new Date().toISOString()
+    // Return a minimal response if no cache is available
+    res.json({
+      about: 'Software Engineer and AI enthusiast',
+      experience: [],
+      education: [],
+      skills: [],
+      projects: {},
+      contact: {}
     });
   }
 });
