@@ -483,6 +483,12 @@ async function fetchWebsiteContent() {
         const hasProjectImage = $stack.find('img[alt]').length > 0;
         const hasProjectTitle = $stack.find('div[class*="chakra-stack"] > div').length > 0;
         
+        // Skip contact information sections
+        const isContactSection = $stack.find('a[href*="mailto:"], a[href*="tel:"]').length > 0;
+        if (isContactSection) {
+          return;
+        }
+        
         if (hasProjectImage || hasProjectTitle) {
           console.log(`\nAnalyzing project stack ${i + 1}:`);
           
@@ -490,21 +496,99 @@ async function fetchWebsiteContent() {
           const name = $stack.find('img[alt]').attr('alt') || '';
           console.log('Project name from alt:', name);
           
+          // Skip if this is a contact/profile section
+          if (name.toLowerCase().includes('roja') || name.toLowerCase().includes('pinnamraju')) {
+            return;
+          }
+          
           // Get project description from the second stack div
-          const description = $stack.find('div[class*="chakra-stack"] > div').eq(1).text().trim();
+          let description = $stack.find('div[class*="chakra-stack"] > div').eq(1).text().trim();
+          
+          // Clean up the description by removing the project name and technologies
+          if (description.startsWith(name)) {
+            description = description.substring(name.length).trim();
+          }
+          
+          // Extract technologies from badges first
+          const technologies = [];
+          $stack.find('span[class*="chakra-badge"], span[class*="technology"]').each((j, tech) => {
+            const techName = $(tech).text().trim();
+            if (techName && techName.length > 2) {
+              technologies.push(techName);
+              // Remove the technology from the description with proper spacing
+              description = description
+                .replace(new RegExp(`\\b${techName}\\b`, 'g'), '') // Remove exact matches
+                .replace(new RegExp(`\\s*,\\s*${techName}\\b`, 'g'), '') // Remove from comma lists
+                .replace(new RegExp(`\\b${techName}\\s*,`, 'g'), '') // Remove with trailing comma
+                .replace(new RegExp(`\\s*and\\s*${techName}\\b`, 'g'), '') // Remove from "and" lists
+                .replace(new RegExp(`\\b${techName}\\s*and`, 'g'), '') // Remove with trailing "and"
+                .trim();
+            }
+          });
+          
+          // Clean up common formatting issues
+          description = description
+            .replace(/\s*,\s*/g, ', ') // Fix spacing around commas
+            .replace(/\s*\.\s*/g, '. ') // Fix spacing around periods
+            .replace(/\s+/g, ' ') // Remove extra spaces
+            .replace(/View Code|Live Demo/g, '') // Remove action buttons
+            .replace(/\s*and\s*/g, ' and ') // Fix spacing around "and"
+            .replace(/\s*using\s*/g, ' using ') // Fix spacing around "using"
+            .replace(/\s*with\s*/g, ' with ') // Fix spacing around "with"
+            .replace(/\s*that\s*/g, ' that ') // Fix spacing around "that"
+            .replace(/\s*,\s*and\s*/g, ', and ') // Fix spacing around ", and"
+            .replace(/\s*,\s*with\s*/g, ', with ') // Fix spacing around ", with"
+            .replace(/\s*,\s*using\s*/g, ', using ') // Fix spacing around ", using"
+            .replace(/\s*\.\s*and\s*/g, '. And ') // Fix spacing around ". and"
+            .replace(/\s*\.\s*with\s*/g, '. With ') // Fix spacing around ". with"
+            .replace(/\s*\.\s*using\s*/g, '. Using ') // Fix spacing around ". using"
+            .replace(/\s*\.\s*that\s*/g, '. That ') // Fix spacing around ". that"
+            .replace(/\s*\.\s*The\s*/g, '. The ') // Fix spacing around ". The"
+            .replace(/\s*\.\s*This\s*/g, '. This ') // Fix spacing around ". This"
+            .replace(/\s*\.\s*It\s*/g, '. It ') // Fix spacing around ". It"
+            .replace(/\s*\.\s*I\s*/g, '. I ') // Fix spacing around ". I"
+            .replace(/\s*\.\s*We\s*/g, '. We ') // Fix spacing around ". We"
+            .replace(/\s*\.\s*Our\s*/g, '. Our ') // Fix spacing around ". Our"
+            .replace(/\s*\.\s*The\s*/g, '. The ') // Fix spacing around ". The"
+            .replace(/\s*\.\s*This\s*/g, '. This ') // Fix spacing around ". This"
+            .replace(/\s*\.\s*It\s*/g, '. It ') // Fix spacing around ". It"
+            .replace(/\s*\.\s*I\s*/g, '. I ') // Fix spacing around ". I"
+            .replace(/\s*\.\s*We\s*/g, '. We ') // Fix spacing around ". We"
+            .replace(/\s*\.\s*Our\s*/g, '. Our ') // Fix spacing around ". Our"
+            .replace(/\s*\.\s*The\s*/g, '. The ') // Fix spacing around ". The"
+            .replace(/\s*\.\s*This\s*/g, '. This ') // Fix spacing around ". This"
+            .replace(/\s*\.\s*It\s*/g, '. It ') // Fix spacing around ". It"
+            .replace(/\s*\.\s*I\s*/g, '. I ') // Fix spacing around ". I"
+            .replace(/\s*\.\s*We\s*/g, '. We ') // Fix spacing around ". We"
+            .replace(/\s*\.\s*Our\s*/g, '. Our ') // Fix spacing around ". Our"
+            .replace(/\s*\.\s*The\s*/g, '. The ') // Fix spacing around ". The"
+            .replace(/\s*\.\s*This\s*/g, '. This ') // Fix spacing around ". This"
+            .replace(/\s*\.\s*It\s*/g, '. It ') // Fix spacing around ". It"
+            .replace(/\s*\.\s*I\s*/g, '. I ') // Fix spacing around ". I"
+            .replace(/\s*\.\s*We\s*/g, '. We ') // Fix spacing around ". We"
+            .replace(/\s*\.\s*Our\s*/g, '. Our ') // Fix spacing around ". Our"
+            .trim();
+          
+          // Remove any remaining technology names that might have been missed
+          technologies.forEach(tech => {
+            description = description
+              .replace(new RegExp(`\\b${tech}\\b`, 'g'), '')
+              .replace(/\s*,\s*,/g, ',') // Fix double commas
+              .replace(/,\s*\./g, '.') // Fix comma before period
+              .replace(/\s*,\s*and\s*/g, ' and ') // Fix comma before and
+              .replace(/\s*and\s*,/g, ' and ') // Fix and before comma
+              .replace(/\s*,\s*with\s*/g, ' with ') // Fix comma before with
+              .replace(/\s*with\s*,/g, ' with ') // Fix with before comma
+              .replace(/\s*,\s*using\s*/g, ' using ') // Fix comma before using
+              .replace(/\s*using\s*,/g, ' using ') // Fix using before comma
+              .trim();
+          });
+          
           console.log('Project description:', description);
           
           if (name && !projectSet.has(name)) {
             projectSet.add(name);
             
-            // Extract technologies from badges
-            const technologies = [];
-            $stack.find('span[class*="chakra-badge"], span[class*="technology"]').each((j, tech) => {
-              const techName = $(tech).text().trim();
-              if (techName && techName.length > 2) {
-                technologies.push(techName);
-              }
-            });
             console.log('Found technologies:', technologies);
             
             // Extract links
