@@ -191,7 +191,9 @@ ${edu.details.map(detail => `- ${detail.replace(/^•\s*/, '')}`).join('\n')}
 `).join('\n')}
 
 My Technical Skills:
-${content.skills.map(skill => `- ${skill.name}`).join('\n')}
+${content.skills && content.skills.length > 0 
+  ? content.skills.map(skill => `- ${skill.name} (${skill.level}%)`).join('\n')
+  : 'No skills information available in my portfolio.'}
 
 My Projects:
 ${Object.entries(content.projects).map(([id, project]) => `
