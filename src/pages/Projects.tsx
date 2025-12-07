@@ -165,12 +165,12 @@ const Projects = () => {
                 icon={FaBrain}
                 title={'AI Task Planner App'}
                 text={
-                  'Developed an AI-powered task management system using Streamlit and FastAPI that integrates with Groq and OpenAI language models. Implemented a responsive frontend with customizable AI behavior and web search capabilities.'
+                  'Developed an AI-powered task management system using Streamlit and FastAPI that integrates with Groq\'s API using the latest Llama 3.3 model. Implemented a responsive frontend with customizable AI behavior and web search capabilities.'
                 }
                 demo="https://ai-personnal-advisor.netlify.app/"
                 github="https://github.com/RojaPinnamraju/ai-task-planner"
                 image="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40"
-                technologies={['Streamlit', 'FastAPI', 'Groq', 'OpenAI', 'Python']}
+                technologies={['Streamlit', 'FastAPI', 'Groq', 'Python']}
               />
             </Box>
             <Box data-project="codeedgeai">

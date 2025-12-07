@@ -25,13 +25,18 @@ async function fetchGitHubContent(githubUrl) {
     
     console.log(`Fetching GitHub content from: ${apiUrl}`);
     
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout for GitHub API
+    
     const response = await fetch(apiUrl, {
       headers: {
         'Accept': 'application/vnd.github.v3+json',
         'User-Agent': 'Portfolio-Chatbot'
       },
-      signal: AbortSignal.timeout(5000)
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       console.log(`GitHub API error: ${response.status}`);
@@ -43,13 +48,18 @@ async function fetchGitHubContent(githubUrl) {
     // Fetch README if available
     let readme = null;
     try {
+      const readmeController = new AbortController();
+      const readmeTimeoutId = setTimeout(() => readmeController.abort(), 3000); // 3 second timeout
+      
       const readmeResponse = await fetch(`${apiUrl}/readme`, {
         headers: {
           'Accept': 'application/vnd.github.v3+json',
           'User-Agent': 'Portfolio-Chatbot'
         },
-        signal: AbortSignal.timeout(5000)
+        signal: readmeController.signal
       });
+      
+      clearTimeout(readmeTimeoutId);
       
       if (readmeResponse.ok) {
         const readmeData = await readmeResponse.json();
@@ -90,33 +100,53 @@ async function enrichProjectsWithGitHub(projects) {
   
   const enrichedProjects = { ...projects };
   
-  // Process each project
-  for (const [id, project] of Object.entries(projects)) {
+  // Process projects in parallel for better performance
+  const enrichmentPromises = Object.entries(projects).map(async ([id, project]) => {
     if (project.links && project.links.length > 0) {
       // Find GitHub link
       const githubLink = project.links.find(link => link.includes('github.com'));
       
       if (githubLink) {
-        console.log(`Enriching project ${project.name} with GitHub data...`);
-        const githubData = await fetchGitHubContent(githubLink);
-        
-        if (githubData) {
-          enrichedProjects[id] = {
-            ...project,
-            github: {
-              description: githubData.description,
-              language: githubData.language,
-              stars: githubData.stars,
-              forks: githubData.forks,
-              topics: githubData.topics,
-              readme: githubData.readme ? githubData.readme.substring(0, 2000) : null, // Limit README size
-              url: githubData.url
-            }
-          };
+        try {
+          console.log(`Enriching project ${project.name} with GitHub data...`);
+          const githubData = await fetchGitHubContent(githubLink);
+          
+          if (githubData) {
+            return {
+              id,
+              project: {
+                ...project,
+                github: {
+                  description: githubData.description,
+                  language: githubData.language,
+                  stars: githubData.stars,
+                  forks: githubData.forks,
+                  topics: githubData.topics,
+                  readme: githubData.readme ? githubData.readme.substring(0, 2000) : null, // Limit README size
+                  url: githubData.url
+                }
+              }
+            };
+          }
+        } catch (error) {
+          console.log(`Failed to enrich project ${project.name}:`, error.message);
+          // Return original project if enrichment fails
+          return { id, project };
         }
       }
     }
-  }
+    return { id, project };
+  });
+  
+  // Wait for all enrichments (some may fail, that's okay)
+  const results = await Promise.allSettled(enrichmentPromises);
+  
+  // Update enriched projects
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled' && result.value) {
+      enrichedProjects[result.value.id] = result.value.project;
+    }
+  });
   
   return enrichedProjects;
 }
@@ -169,7 +199,7 @@ async function fetchWebsiteContent(forceRefresh = false) {
         console.log('Making request to:', url);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // Increased to 15 seconds
 
         const response = await fetch(url, {
           method: 'GET',
@@ -275,11 +305,35 @@ export const handler = async function(event, context) {
       content = await fetchWebsiteContent(true);
       console.log('Content fetched successfully');
       
-      // Enrich projects with GitHub data
+      // Enrich projects with GitHub data (non-blocking - don't wait if it takes too long)
       if (content.projects && Object.keys(content.projects).length > 0) {
         console.log('Enriching projects with GitHub information...');
-        content.projects = await enrichProjectsWithGitHub(content.projects);
-        console.log('Projects enriched with GitHub data');
+        // Start GitHub enrichment but don't block on it
+        enrichProjectsWithGitHub(content.projects)
+          .then(enrichedProjects => {
+            // Update cache with enriched data for future requests
+            if (contentCache) {
+              contentCache.projects = enrichedProjects;
+            }
+            console.log('Projects enriched with GitHub data (async)');
+          })
+          .catch(githubError => {
+            console.log('GitHub enrichment failed (non-critical):', githubError.message);
+            // Continue without GitHub data - not critical
+          });
+        
+        // Try to get GitHub data with a short timeout, but don't fail if it times out
+        try {
+          const enrichedProjects = await Promise.race([
+            enrichProjectsWithGitHub(content.projects),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('GitHub fetch timeout')), 5000))
+          ]);
+          content.projects = enrichedProjects;
+          console.log('Projects enriched with GitHub data');
+        } catch (githubError) {
+          console.log('GitHub enrichment timed out or failed, continuing without it:', githubError.message);
+          // Continue with original projects data - GitHub enrichment is optional
+        }
       }
     } catch (error) {
       console.error('Failed to fetch content:', error);
