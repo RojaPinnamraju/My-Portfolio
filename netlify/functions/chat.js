@@ -13,6 +13,114 @@ let lastFetchTime = null;
 let isFetching = false;
 let fetchPromise = null;
 
+// Function to fetch GitHub repository content
+async function fetchGitHubContent(githubUrl) {
+  try {
+    // Extract owner and repo from GitHub URL
+    const match = githubUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+    if (!match) return null;
+    
+    const [, owner, repo] = match;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}`;
+    
+    console.log(`Fetching GitHub content from: ${apiUrl}`);
+    
+    const response = await fetch(apiUrl, {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'Portfolio-Chatbot'
+      },
+      signal: AbortSignal.timeout(5000)
+    });
+    
+    if (!response.ok) {
+      console.log(`GitHub API error: ${response.status}`);
+      return null;
+    }
+    
+    const repoData = await response.json();
+    
+    // Fetch README if available
+    let readme = null;
+    try {
+      const readmeResponse = await fetch(`${apiUrl}/readme`, {
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'Portfolio-Chatbot'
+        },
+        signal: AbortSignal.timeout(5000)
+      });
+      
+      if (readmeResponse.ok) {
+        const readmeData = await readmeResponse.json();
+        // Decode base64 content (Buffer works in Netlify Functions Node.js environment)
+        if (readmeData.content) {
+          try {
+            readme = Buffer.from(readmeData.content, 'base64').toString('utf-8');
+          } catch (e) {
+            console.log('Error decoding README:', e.message);
+          }
+        }
+      }
+    } catch (readmeError) {
+      console.log('Could not fetch README:', readmeError.message);
+    }
+    
+    return {
+      name: repoData.name,
+      description: repoData.description,
+      language: repoData.language,
+      stars: repoData.stargazers_count,
+      forks: repoData.forks_count,
+      topics: repoData.topics || [],
+      readme: readme,
+      url: repoData.html_url,
+      createdAt: repoData.created_at,
+      updatedAt: repoData.updated_at
+    };
+  } catch (error) {
+    console.error('Error fetching GitHub content:', error.message);
+    return null;
+  }
+}
+
+// Function to fetch additional project information from GitHub
+async function enrichProjectsWithGitHub(projects) {
+  if (!projects || Object.keys(projects).length === 0) return projects;
+  
+  const enrichedProjects = { ...projects };
+  
+  // Process each project
+  for (const [id, project] of Object.entries(projects)) {
+    if (project.links && project.links.length > 0) {
+      // Find GitHub link
+      const githubLink = project.links.find(link => link.includes('github.com'));
+      
+      if (githubLink) {
+        console.log(`Enriching project ${project.name} with GitHub data...`);
+        const githubData = await fetchGitHubContent(githubLink);
+        
+        if (githubData) {
+          enrichedProjects[id] = {
+            ...project,
+            github: {
+              description: githubData.description,
+              language: githubData.language,
+              stars: githubData.stars,
+              forks: githubData.forks,
+              topics: githubData.topics,
+              readme: githubData.readme ? githubData.readme.substring(0, 2000) : null, // Limit README size
+              url: githubData.url
+            }
+          };
+        }
+      }
+    }
+  }
+  
+  return enrichedProjects;
+}
+
 // Function to fetch website content
 async function fetchWebsiteContent(forceRefresh = false) {
   console.log('Starting content fetch...');
@@ -166,6 +274,13 @@ export const handler = async function(event, context) {
       // Force refresh content to get latest updates
       content = await fetchWebsiteContent(true);
       console.log('Content fetched successfully');
+      
+      // Enrich projects with GitHub data
+      if (content.projects && Object.keys(content.projects).length > 0) {
+        console.log('Enriching projects with GitHub information...');
+        content.projects = await enrichProjectsWithGitHub(content.projects);
+        console.log('Projects enriched with GitHub data');
+      }
     } catch (error) {
       console.error('Failed to fetch content:', error);
       return {
@@ -210,12 +325,29 @@ ${content.expertise && content.expertise.length > 0
 
 My Projects:
 ${content.projects && Object.keys(content.projects).length > 0
-  ? Object.entries(content.projects).map(([id, project]) => `
+  ? Object.entries(content.projects).map(([id, project]) => {
+      let projectInfo = `
 Project: ${project.name}
 Description: ${project.description}
 Technologies Used: ${project.technologies.join(', ')}
 Project Links: ${project.links.length > 0 ? project.links.join(', ') : 'No links available'}
-`).join('\n\n')
+`;
+      
+      // Add GitHub information if available
+      if (project.github) {
+        projectInfo += `
+GitHub Information:
+- Repository Description: ${project.github.description || 'N/A'}
+- Primary Language: ${project.github.language || 'N/A'}
+- Stars: ${project.github.stars || 0}
+- Forks: ${project.github.forks || 0}
+- Topics: ${project.github.topics.join(', ') || 'None'}
+${project.github.readme ? `- README Excerpt: ${project.github.readme.substring(0, 500)}...` : ''}
+`;
+      }
+      
+      return projectInfo;
+    }).join('\n\n')
   : 'No projects information available in my portfolio.'}
 
 My Contact Information:
@@ -223,12 +355,26 @@ ${content.contact && Object.keys(content.contact).length > 0
   ? Object.entries(content.contact).map(([type, value]) => `${type}: ${value}`).join('\n')
   : 'No contact information available in my portfolio.'}
 
+Additional Context:
+- You have access to GitHub repository information for projects that have GitHub links
+- GitHub information includes: repository descriptions, primary languages, stars, forks, topics, and README content
+- You can use this GitHub information to provide more detailed answers about projects
+- For LinkedIn, you can mention the profile link if available in contact information
+
 IMPORTANT RULES:
-1. ONLY respond based on the information provided above. DO NOT make assumptions or add information that is not explicitly stated.
-2. If the information is not available in the provided content, respond with: "I don't have that information in my portfolio."
-3. DO NOT make up or infer details about experience, skills, or projects.
-4. DO NOT provide generic responses or industry-standard information.
-5. If asked about something not covered in the provided information, respond with: "I don't have that information in my portfolio."
+1. You can respond based on:
+   - Information provided in the portfolio content above
+   - GitHub repository information (README, descriptions, languages, topics) that has been fetched
+   - Contact information and links provided
+   - Any additional context from external sources mentioned above
+2. For questions about projects, you can use:
+   - Portfolio project descriptions
+   - GitHub repository information (if available)
+   - Technologies and languages from GitHub
+   - README content from GitHub repositories
+3. DO NOT make up information that is not in the provided content or GitHub data.
+4. If information is not available in portfolio or GitHub, you can say: "I don't have that specific information available, but I can tell you about what I do know from my portfolio."
+5. You can provide more detailed answers about projects using GitHub information when available.
 
 When responding:
 1. ONLY give your full introduction when:
@@ -252,11 +398,11 @@ When responding:
 
 6. DO NOT make assumptions or create fictional projects/experiences
 
-7. If asked about something not covered in this information, respond with: "I don't have that information in my portfolio."
+7. If asked about something not covered in portfolio or GitHub information, you can say: "I don't have that specific information available, but based on my portfolio and GitHub repositories, I can tell you..."
 
-8. For academic projects, only mention what's explicitly stated in the education section
+8. For academic projects, mention what's explicitly stated in the education section, and you can also reference GitHub if the project has a repository
 
-9. Keep responses focused on factual information from the portfolio content
+9. Keep responses focused on factual information from the portfolio content and GitHub repositories
 
 10. Make responses conversational and natural, avoiding repetitive phrases
 
@@ -264,10 +410,16 @@ When responding:
 
 12. When talking about projects:
     - Only mention projects that are explicitly listed
-    - Include the technologies used for each project
+    - Include the technologies used for each project (from portfolio and GitHub)
     - Mention any available links to the projects
-    - If asked about a specific project, provide all available details about that project
-    - If asked about technologies used in projects, only mention technologies that are explicitly listed
+    - If asked about a specific project, provide all available details including:
+      * Portfolio description
+      * GitHub repository information (if available)
+      * Technologies and languages from GitHub
+      * README content excerpts
+      * Stars, forks, and topics from GitHub
+    - If asked about technologies used in projects, mention technologies from both portfolio and GitHub data
+    - You can provide more detailed technical information from GitHub READMEs when available
 
 13. When discussing contact information:
     - Only share contact information that is explicitly provided
